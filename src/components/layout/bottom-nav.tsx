@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, MessageSquare, BookClock, User, QrCode } from 'lucide-react';
+import { Home, MessageSquare, History, User } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { LanguageSwitcher } from '../language-switcher';
@@ -10,7 +10,7 @@ import { LanguageSwitcher } from '../language-switcher';
 const navItems = [
   { href: '/home', icon: Home, label: 'Home' },
   { href: '/assistant', icon: MessageSquare, label: 'Assistant' },
-  { href: '/history', icon: BookClock, label: 'History' },
+  { href: '/history', icon: History, label: 'History' },
   { href: '/profile', icon: User, label: 'Profile' },
 ];
 
