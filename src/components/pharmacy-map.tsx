@@ -1,9 +1,9 @@
 'use client';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
-import Map, { Marker, GeolocateControl, NavigationControl } from 'react-map-gl';
+import Map, { Marker, GeolocateControl, NavigationControl } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
-import { MapPin, LocateFixed } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 // Mock data for pharmacies in Addis Ababa
