@@ -26,6 +26,8 @@ export default function AssistantPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const { user } = useAuth();
 
@@ -34,16 +36,37 @@ export default function AssistantPage() {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [messages]);
-  
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.onstart = () => setIsRecording(true);
+      recognitionRef.current.onend = () => setIsRecording(false);
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
+      };
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        handleVoiceQuery(transcript);
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    if (recognitionRef.current) {
+        recognitionRef.current.lang = language === 'am' ? 'am-ET' : 'en-US';
+    }
+  }, [language]);
+
+
   const translations = {
     title: { en: 'AI Health Assistant', am: 'AI የጤና ረዳት', om: 'Gargaaraa Fayyaa AI' },
     description: { en: 'Ask me anything about your health.', am: 'ስለ ጤናዎ ማንኛውንም ነገር ይጠይቁኝ።', om: 'Waa\'ee fayyaa keetii waanuma fedhe na gaafadhu.' },
     placeholder: { en: 'Type your health question...', am: 'የጤና ጥያቄዎን ይተይቡ...', om: 'Gaaffii fayyaa kee barreessi...' },
-    voiceQuery: {
-      en: 'What should I do if I miss a dose of my medication?',
-      am: 'የመድኃኒቴን ልክ መጠን ከረሳሁ ምን ማድረግ አለብኝ?',
-      om: 'Yoo hamma qoricha koo hir\'ise maal gochuun qaba?',
-    }
   };
 
   const handleSendMessage = async (query: string) => {
@@ -76,14 +99,23 @@ export default function AssistantPage() {
     setIsLoading(false);
   };
   
-  const handleVoiceInput = async () => {
-    const voiceQuery = getTranslation(translations.voiceQuery);
-    const userMessage: Message = { id: Date.now().toString(), text: voiceQuery, sender: 'user' };
+  const handleVoiceInput = () => {
+    if (recognitionRef.current && !isRecording) {
+      recognitionRef.current.start();
+    } else if (recognitionRef.current && isRecording) {
+      recognitionRef.current.stop();
+    }
+  };
+
+  const handleVoiceQuery = async (query: string) => {
+    if (!query.trim()) return;
+    const userMessage: Message = { id: Date.now().toString(), text: query, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     
     try {
-      const result = await voiceInputForMedicationQueries({ query: voiceQuery, language });
+      // Use the existing voice flow which is language-aware
+      const result = await voiceInputForMedicationQueries({ query, language });
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: result.response,
@@ -176,8 +208,8 @@ export default function AssistantPage() {
           className="pr-24"
         />
         <div className="absolute bottom-2 right-2 flex gap-1">
-          <Button type="button" size="icon" variant="ghost" onClick={handleVoiceInput} disabled={isLoading}>
-            <Mic className="h-5 w-5" />
+          <Button type="button" size="icon" variant={isRecording ? 'destructive' : 'ghost'} onClick={handleVoiceInput} disabled={isLoading || !recognitionRef.current}>
+            <Mic className={cn('h-5 w-5', isRecording && 'animate-pulse')} />
           </Button>
           <Button type="submit" size="icon" onClick={() => handleSendMessage(input)} disabled={isLoading}>
             <Send className="h-5 w-5" />

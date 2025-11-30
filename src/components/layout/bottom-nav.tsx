@@ -6,16 +6,18 @@ import { Home, MessageSquare, History, User } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { LanguageSwitcher } from '../language-switcher';
-
-const navItems = [
-  { href: '/home', icon: Home, label: 'Home' },
-  { href: '/assistant', icon: MessageSquare, label: 'Assistant' },
-  { href: '/history', icon: History, label: 'History' },
-  { href: '/profile', icon: User, label: 'Profile' },
-];
+import { useLanguage } from '@/hooks/use-language';
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { getTranslation } = useLanguage();
+  
+  const navItems = [
+    { href: '/home', icon: Home, label: { en: 'Home', am: 'መነሻ', om: 'Mana' } },
+    { href: '/assistant', icon: MessageSquare, label: { en: 'Assistant', am: 'ረዳት', om: 'Gargaaraa' } },
+    { href: '/history', icon: History, label: { en: 'History', am: 'ታሪክ', om: 'Seenaa' } },
+    { href: '/profile', icon: User, label: { en: 'Profile', am: 'መገለጫ', om: 'Profaayilii' } },
+  ];
 
   return (
     <footer className="sticky bottom-0 z-10 w-full border-t bg-background/95 backdrop-blur-sm">
@@ -32,7 +34,7 @@ export function BottomNav() {
               )}
             >
               <item.icon className="h-6 w-6" />
-              <span className="text-xs font-medium">{item.label}</span>
+              <span className="text-xs font-medium">{getTranslation(item.label)}</span>
             </Link>
           );
         })}

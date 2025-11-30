@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ export default function MyQrInfoPage() {
   const { toast } = useToast();
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<QrInfo>({
     resolver: zodResolver(formSchema),
@@ -43,12 +44,19 @@ export default function MyQrInfoPage() {
     },
   });
 
+  const docRef = useMemo(() => {
+    if (!userId) return null;
+    return doc(db, 'users', userId, 'qrInfo', 'data');
+  }, [userId]);
+
   useEffect(() => {
     async function fetchQrInfo() {
-      if (!userId) return;
+      if (!docRef) {
+        setIsLoading(false);
+        return;
+      };
       setIsLoading(true);
       try {
-        const docRef = doc(db, 'users', userId, 'qrInfo', 'data');
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data() as QrInfo;
@@ -57,11 +65,12 @@ export default function MyQrInfoPage() {
         }
       } catch (error) {
         console.error('Error fetching QR info:', error);
+        toast({ title: 'Error', description: 'Failed to load your information.', variant: 'destructive' });
       }
       setIsLoading(false);
     }
     fetchQrInfo();
-  }, [userId, form]);
+  }, [userId, form, docRef, toast]);
 
   const generateQrCode = (data: QrInfo) => {
     const qrData = `
@@ -74,12 +83,12 @@ Emergency Contact: ${data.emergencyContact || 'None'}
   };
 
   async function onSubmit(values: QrInfo) {
-    if (!userId) {
+    if (!docRef) {
       toast({ title: 'Error', description: 'You must be logged in to save data.', variant: 'destructive' });
       return;
     }
+    setIsSubmitting(true);
     try {
-      const docRef = doc(db, 'users', userId, 'qrInfo', 'data');
       await setDoc(docRef, values);
       generateQrCode(values);
       toast({ title: 'Success', description: 'Your information has been saved.' });
@@ -87,6 +96,7 @@ Emergency Contact: ${data.emergencyContact || 'None'}
       toast({ title: 'Error', description: 'Failed to save information.', variant: 'destructive' });
       console.error('Error saving QR info:', error);
     }
+    setIsSubmitting(false);
   }
 
   const translations = {
@@ -145,8 +155,8 @@ Emergency Contact: ${data.emergencyContact || 'None'}
                     <FormMessage />
                   </FormItem>
                 )} />
-              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {getTranslation(translations.saveBtn)}
               </Button>
             </form>
