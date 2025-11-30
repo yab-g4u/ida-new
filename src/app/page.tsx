@@ -33,6 +33,12 @@ export default function Home() {
   useEffect(() => {
     if (isClient && isSplashDone && !loading) {
       try {
+        const languageSelected = localStorage.getItem('languageSelected');
+        if (!languageSelected) {
+          router.replace('/language-select');
+          return;
+        }
+
         const onboardingComplete = localStorage.getItem('onboardingComplete');
         if (onboardingComplete) {
           router.replace('/home');
@@ -41,7 +47,7 @@ export default function Home() {
         }
       } catch (e) {
         // Fallback for environments where localStorage is not available
-        router.replace('/onboarding');
+        router.replace('/language-select');
       }
     }
   }, [isClient, isSplashDone, loading, router, user]);
