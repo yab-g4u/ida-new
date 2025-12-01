@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useEffect, useState, useMemo } from 'react';
-import Image from 'next/image';
+import QRCode from 'qrcode.react';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -30,7 +30,7 @@ export default function MyQrInfoPage() {
   const { getTranslation } = useLanguage();
   const { userId } = useAuth();
   const { toast } = useToast();
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [qrData, setQrData] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -61,7 +61,7 @@ export default function MyQrInfoPage() {
         if (docSnap.exists()) {
           const data = docSnap.data() as QrInfo;
           form.reset(data);
-          generateQrCode(data);
+          generateQrData(data);
         }
       } catch (error) {
         console.error('Error fetching QR info:', error);
@@ -72,14 +72,14 @@ export default function MyQrInfoPage() {
     fetchQrInfo();
   }, [userId, form, docRef, toast]);
 
-  const generateQrCode = (data: QrInfo) => {
-    const qrData = `
+  const generateQrData = (data: QrInfo) => {
+    const dataString = `
 Blood Type: ${data.bloodType}
 Allergies: ${data.allergies || 'None'}
 Prescriptions: ${data.prescriptions || 'None'}
 Emergency Contact: ${data.emergencyContact || 'None'}
     `.trim();
-    setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(qrData)}`);
+    setQrData(dataString);
   };
 
   async function onSubmit(values: QrInfo) {
@@ -90,7 +90,7 @@ Emergency Contact: ${data.emergencyContact || 'None'}
     setIsSubmitting(true);
     try {
       await setDoc(docRef, values);
-      generateQrCode(values);
+      generateQrData(values);
       toast({ title: 'Success', description: 'Your information has been saved.' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to save information.', variant: 'destructive' });
@@ -162,13 +162,13 @@ Emergency Contact: ${data.emergencyContact || 'None'}
             </form>
           </Form>
 
-          {qrCodeUrl && (
+          {qrData && (
             <Card>
               <CardHeader>
                 <CardTitle className="font-headline">{getTranslation(translations.qrTitle)}</CardTitle>
               </CardHeader>
               <CardContent className="flex justify-center">
-                <Image src={qrCodeUrl} alt="Emergency QR Code" width={256} height={256} />
+                <QRCode value={qrData} size={256} />
               </CardContent>
             </Card>
           )}
