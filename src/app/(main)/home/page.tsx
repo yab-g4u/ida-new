@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Search, MapPin, QrCode, ChevronRight, User, Settings, ShieldCheck, BrainCircuit, Clock } from 'lucide-react';
+import { Search, MapPin, QrCode, ChevronRight, User, Settings, ShieldCheck, BrainCircuit, Clock, HeartPulse } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useEffect, useState } from 'react';
 
 const featureCards = [
     { 
@@ -49,12 +50,43 @@ const smallFeatureCards = [
     }
 ];
 
+const healthTips = {
+  en: [
+    "Drink at least 8 glasses of water a day to stay hydrated.",
+    "Aim for 30 minutes of moderate exercise most days of the week.",
+    "Eat a variety of fruits and vegetables every day.",
+    "Get 7-9 hours of quality sleep per night.",
+    "Wash your hands frequently to prevent the spread of germs.",
+  ],
+  am: [
+    "ውሃ ለመቆየት በቀን ቢያንስ 8 ብርጭቆ ውሃ ይጠጡ።",
+    "በሳምንቱ ብዙ ቀናት ለ30 ደቂቃ መካከለኛ የአካል ብቃት እንቅስቃሴ ለማድረግ አስቡ።",
+    "በየቀኑ የተለያዩ ፍራፍሬዎችን እና አትክልቶችን ይመገቡ።",
+    "በሌሊት ከ7-9 ሰአታት ጥራት ያለው እንቅልፍ ያግኙ።",
+    "የጀርሞችን ስርጭት ለመከላከል እጅዎን ቶሎ ቶሎ ይታጠቡ።",
+  ],
+  om: [
+    "Guyyaatti bishaan burcuqqoo 8 yoo xiqqaate dhuguun qaama keessan jiidhinaa.",
+    "Torbanitti guyyoota hedduu daqiiqaa 30f sochii qaamaa giddu-galeessaa gochuuf yaalaa.",
+    "Guyyaa guyyaan kuduraalee fi muduraalee adda addaa nyaadhaa.",
+    "Halkan tokko sa'aatii 7-9f hirriba gaarii rafaa.",
+    "Tamsa'ina jarmootaa ittisuuf yeroo yeroon harka keessan dhiqadhaa.",
+  ]
+};
+
 export default function HomePage() {
   const { user } = useAuth();
   const { getTranslation, language } = useLanguage();
+  const [dailyTip, setDailyTip] = useState('');
   
   const welcomeTitle = getTranslation({ en: `Welcome to IDA`, am: 'ወደ IDA እንኳን በደህና መጡ', om: 'Gara IDA tti Nagaan Dhuftan' });
   const welcomeSubtitle = getTranslation({ en: 'Your intelligent health assistant', am: 'ብልህ የጤና ረዳትዎ', om: 'Gargaaraa fayyaa kee oo\'annoo qabu' });
+
+  useEffect(() => {
+    const tipsForLanguage = healthTips[language];
+    const randomIndex = Math.floor(Math.random() * tipsForLanguage.length);
+    setDailyTip(tipsForLanguage[randomIndex]);
+  }, [language]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -98,6 +130,16 @@ export default function HomePage() {
                     </Link>
                 ))}
             </div>
+
+            <Card className="mt-6 bg-accent border-accent-foreground/20">
+                <CardHeader className="flex-row items-center gap-4 space-y-0 pb-2">
+                    <HeartPulse className="h-6 w-6 text-primary" />
+                    <CardTitle className="font-headline text-lg">{getTranslation({ en: 'Daily Health Tip', am: 'የዕለት ጤና ምክር', om: 'Gorsa Fayyaa Guyyaa' })}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-foreground/80 italic">"{dailyTip}"</p>
+                </CardContent>
+            </Card>
         </main>
     </div>
   );
