@@ -3,6 +3,7 @@ import './globals.css';
 import { AuthProvider } from '@/contexts/auth-provider';
 import { LanguageProvider } from '@/contexts/language-provider';
 import { Toaster } from '@/components/ui/toaster';
+import { ThemeProvider } from '@/contexts/theme-provider';
 
 export const metadata: Metadata = {
   title: 'IDA: Your AI Health Ally',
@@ -22,12 +23,14 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Alegreya:wght@400;700&family=Belleza&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
-          <LanguageProvider>
-            {children}
-            <Toaster />
-          </LanguageProvider>
-        </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AuthProvider>
+            <LanguageProvider>
+              {children}
+              <Toaster />
+            </LanguageProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

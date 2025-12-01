@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/ca
 import { Search, MapPin, QrCode, ChevronRight, User, Settings, ShieldCheck, BrainCircuit, Clock } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const featureCards = [
     { 
@@ -63,13 +64,11 @@ export default function HomePage() {
                     <h1 className="font-headline text-3xl font-bold">{welcomeTitle}</h1>
                     <p className="text-sm opacity-90">{welcomeSubtitle}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
                     <button className="p-2 rounded-full hover:bg-white/20">
                         <User className="w-6 h-6" />
                     </button>
-                    <button className="p-2 rounded-full hover:bg-white/20">
-                        <Settings className="w-6 h-6" />
-                    </button>
+                    <ThemeToggle />
                 </div>
             </div>
             <div className="grid grid-cols-3 gap-4 text-center">
@@ -82,7 +81,7 @@ export default function HomePage() {
             </div>
         </header>
       
-        <main className="flex-grow p-4 md:p-6 space-y-4">
+        <main className="flex-grow p-4 md:p-6">
             <div className="space-y-4">
                 {featureCards.map((feature, index) => (
                     <Link href={feature.href} key={index} passHref>
