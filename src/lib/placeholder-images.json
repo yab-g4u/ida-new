@@ -2,27 +2,27 @@
   "placeholderImages": [
     {
       "id": "onboarding1",
-      "description": "An illustration showing a magnifying glass over a book, representing learning and search.",
-      "imageUrl": "https://images.unsplash.com/photo-1584432810601-6c7f27d2362b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxtZWRpY2luZSUyMGJvdHRsZXxlbnwwfHx8fDE3NjQ1NjI0NTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "medicine search"
+      "description": "An artistic image of a glowing brain with neural networks, representing instant learning and AI.",
+      "imageUrl": "https://images.unsplash.com/photo-1534787232354-3572a53042e2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxhaSUyMGJyYWlufGVufDB8fHx8MTc2NDYzMDMyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "ai brain"
     },
     {
       "id": "onboarding2",
-      "description": "An illustration of a camera scanning a medicine bottle.",
-      "imageUrl": "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtZWRpY2luZSUyMHBhY2thZ2luZ3xlbnwwfHx8fDE3NjQ1NjI1MTB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "description": "A close-up shot of a smartphone scanning the barcode on a medicine package.",
+      "imageUrl": "https://images.unsplash.com/photo-1626682561113-d1db402cc866?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxxciUyMGNvZGV8ZW58MHx8fHwxNzY0NDM3MjgzfDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "scan medicine"
     },
     {
       "id": "onboarding3",
-      "description": "An illustration showing a map with pins, representing finding nearby help.",
-      "imageUrl": "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxtYXAlMjBsb2NhdGlvbnxlbnwwfHx8fDE3NjQ1NjI1NDN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "description": "A stylized 3D map with location pins highlighting nearby pharmacies.",
+      "imageUrl": "https://images.unsplash.com/photo-1572124803129-23253b8a82b9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxtYXAlMjBsb2NhdGlvbnxlbnwwfHx8fDE3NjQ2MzAzODd8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "map location"
     },
     {
       "id": "onboarding4",
-      "description": "An illustration of a QR code on a medical card.",
-      "imageUrl": "https://images.unsplash.com/photo-1626682561113-d1db402cc866?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxxciUyMGNvZGV8ZW58MHx8fHwxNzY0NDM3MjgzfDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "qr code"
+      "description": "A digital illustration of a secure QR code on a shield, representing emergency health information.",
+      "imageUrl": "https://images.unsplash.com/photo-1587614299489-3e0e562419a4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxxciUyMGNvZGUlMjBzZWN1cml0eXxlbnwwfHx8fDE3NjQ2MzA0NDJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "secure qr"
     }
   ]
 }
