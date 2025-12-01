@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Pharmacy } from './pharmacy-map';
@@ -32,8 +33,8 @@ export function PharmacyInfoCard({ pharmacy }: PharmacyInfoCardProps) {
       <div>
         <div className="flex justify-between items-start gap-4">
             <div className="flex-1">
-                <h2 className="font-headline text-2xl font-bold">{name}</h2>
-                <p className="text-muted-foreground">{area}</p>
+                <h2 className="font-headline text-xl md:text-2xl font-bold">{name}</h2>
+                <p className="text-muted-foreground text-sm">{area}</p>
             </div>
             <div className='flex gap-2'>
                 {phone && (
@@ -47,18 +48,18 @@ export function PharmacyInfoCard({ pharmacy }: PharmacyInfoCardProps) {
             </div>
         </div>
         <Separator className="my-3" />
-        <div className="space-y-2 text-muted-foreground">
+        <div className="space-y-2 text-sm text-muted-foreground">
           <div className="flex items-center">
-            <MapPin className="mr-2" />
+            <MapPin className="mr-2 h-4 w-4" />
             <span>{`${distance} km away`}</span>
           </div>
           <div className="flex items-center">
-            <Clock className="mr-2" />
+            <Clock className="mr-2 h-4 w-4" />
             <span>{hours === '24 Hours' ? getTranslation({en: 'Open 24 hours', am: '24 ሰዓት ክፍት', om: 'Sa\'aatii 24 Banaadha'}) : `${getTranslation(translations.closesAt)} ${hours}`}</span>
           </div>
           {phone && (
             <div className="flex items-center">
-              <Phone className="mr-2" />
+              <Phone className="mr-2 h-4 w-4" />
               <span>{phone}</span>
             </div>
           )}
