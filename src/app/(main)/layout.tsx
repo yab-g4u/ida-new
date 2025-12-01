@@ -13,6 +13,12 @@ export default function MainAppLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const isAssistantPage = (children as React.ReactElement)?.props?.childProp?.segment === 'assistant';
+
+  if (isAssistantPage) {
+    return <div className="flex min-h-screen flex-col">{children}</div>;
+  }
+  
   return (
     <div className="flex min-h-screen flex-col">
       <main className="flex-1 pb-24">{children}</main>

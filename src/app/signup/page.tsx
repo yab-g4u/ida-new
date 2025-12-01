@@ -7,7 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -33,6 +34,17 @@ export default function SignupPage() {
     defaultValues: { name: '', email: '', password: '' },
   });
 
+  const createUserDocument = async (user: any, name: string) => {
+    if (!user) return;
+    const userRef = doc(db, 'users', user.uid);
+    await setDoc(userRef, {
+      uid: user.uid,
+      email: user.email,
+      displayName: name,
+      createdAt: serverTimestamp(),
+    });
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
@@ -40,7 +52,8 @@ export default function SignupPage() {
       if (userCredential.user) {
         await updateProfile(userCredential.user, {
             displayName: values.name,
-        })
+        });
+        await createUserDocument(userCredential.user, values.name);
       }
       toast({ title: 'Success', description: 'Account created successfully.' });
       router.push('/home');
@@ -60,7 +73,8 @@ export default function SignupPage() {
     setIsSubmitting(true);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      await createUserDocument(result.user, result.user.displayName || 'Google User');
       toast({ title: 'Success', description: 'Signed up with Google.' });
       router.push('/home');
     } catch (error: any) {
