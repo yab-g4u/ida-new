@@ -2,76 +2,104 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Search, MapPin, QrCode } from 'lucide-react';
+import { Search, MapPin, QrCode, ChevronRight, User, Settings, ShieldCheck, BrainCircuit, Clock } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
-import Prism from '@/components/ui/Prism';
 
 const featureCards = [
     { 
         href: '/search-medicine', 
         icon: Search, 
-        title: { en: 'Search Medicine Info', am: 'የመድሃኒት መረጃ ይፈልጉ', om: 'Odeeffannoo Qorichaa Barbaadi' },
+        iconBg: 'bg-green-100',
+        iconColor: 'text-green-600',
+        title: { en: 'Search Medicine Info', am: 'መድሃኒት ፈልግ', om: 'Odeeffannoo Qorichaa Barbaadi' },
         description: { en: 'Find information about your medication.', am: 'ስለ መድሃኒትዎ መረጃ ያግኙ።', om: 'Waa\'ee qoricha keetii odeeffannoo argadhu.' },
     },
     { 
         href: '/locate-pharmacy', 
         icon: MapPin, 
+        iconBg: 'bg-blue-100',
+        iconColor: 'text-blue-600',
         title: { en: 'Locate Pharmacy', am: 'ፋርማሲ ያግኙ', om: 'Faarmaasii Barbaadi' },
         description: { en: 'Find pharmacies near you.', am: 'በአቅራቢያዎ ያሉ ፋርማሲዎችን ያግኙ።', om: 'Faarmaasiiwwan dhiyoo kee jiran argadhu.' },
     },
     { 
         href: '/my-qr-info', 
         icon: QrCode, 
+        iconBg: 'bg-purple-100',
+        iconColor: 'text-purple-600',
         title: { en: 'My QR Info', am: 'የእኔ QR መረጃ', om: 'Odeeffannoo QR Koo' },
         description: { en: 'Your emergency health information.', am: 'የእርስዎ የድንገተኛ የጤና መረጃ።', om: 'Odeeffannoo kee kan fayyaa yeroo hatattamaa.' },
     },
 ];
 
+const smallFeatureCards = [
+    {
+        icon: Clock,
+        label: { en: '24/7', am: '24/7', om: '24/7' },
+    },
+    {
+        icon: BrainCircuit,
+        label: { en: 'AI Powered', am: 'AI የተጎላበተ', om: 'AI-Aan Deeggarame' },
+    },
+    {
+        icon: ShieldCheck,
+        label: { en: 'Secure', am: 'ደህንነቱ የተጠበቀ', om: 'Nagaa\'aa' },
+    }
+];
+
 export default function HomePage() {
   const { user } = useAuth();
-  const { getTranslation } = useLanguage();
+  const { getTranslation, language } = useLanguage();
   
-  const welcomeTitle = getTranslation({ en: 'Welcome to IDA', am: 'ወደ IDA እንኳን በደህና መጡ', om: 'Gara IDA tti Nagaan Dhuftan' });
-  const welcomeSubtitle = user ? `ID: ${user.uid.substring(0, 8)}...` : getTranslation({ en: 'Your AI Health Ally', am: 'የእርስዎ AI የጤና አጋር', om: 'Gargaaraa Fayyaa AI Kee' });
+  const welcomeTitle = getTranslation({ en: `Welcome to IDA`, am: 'ወደ IDA እንኳን በደህና መጡ', om: 'Gara IDA tti Nagaan Dhuftan' });
+  const welcomeSubtitle = getTranslation({ en: 'Your intelligent health assistant', am: 'ብልህ የጤና ረዳትዎ', om: 'Gargaaraa fayyaa kee oo\'annoo qabu' });
 
   return (
-    <div className="relative flex flex-col justify-center min-h-[calc(100vh-4rem)]">
-      <div className="absolute inset-0 -z-10 h-full w-full">
-        <Prism
-            animationType="hover"
-            timeScale={0.5}
-            height={3.5}
-            baseWidth={5.5}
-            scale={3.6}
-            hueShift={0}
-            colorFrequency={1}
-            noise={0.1}
-            glow={1}
-          />
-      </div>
-      <div className="container mx-auto p-4 md:p-6 space-y-6">
-        <header className="text-center">
-            <h1 className="font-headline text-4xl md:text-5xl text-primary-foreground">{welcomeTitle}</h1>
-            <p className="text-muted-foreground">{welcomeSubtitle}</p>
+    <div className="flex flex-col min-h-screen bg-background">
+        <header className="bg-primary text-primary-foreground p-6 rounded-b-3xl shadow-lg">
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    <h1 className="font-headline text-3xl font-bold">{welcomeTitle}</h1>
+                    <p className="text-sm opacity-90">{welcomeSubtitle}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button className="p-2 rounded-full hover:bg-white/20">
+                        <User className="w-6 h-6" />
+                    </button>
+                    <button className="p-2 rounded-full hover:bg-white/20">
+                        <Settings className="w-6 h-6" />
+                    </button>
+                </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4 text-center">
+                {smallFeatureCards.map((feature, index) => (
+                    <div key={index} className="bg-white/20 rounded-lg p-3 flex flex-col items-center justify-center">
+                        <feature.icon className="w-7 h-7 mb-1"/>
+                        <span className="text-xs font-semibold">{getTranslation(feature.label)}</span>
+                    </div>
+                ))}
+            </div>
         </header>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto w-full">
-            {featureCards.map((feature, index) => (
-                <Link href={feature.href} key={index} passHref>
-                    <Card className="hover:bg-accent/80 bg-background/50 backdrop-blur-sm transition-colors h-full">
-                        <CardHeader className="flex flex-col items-center text-center gap-4 p-4">
-                            <feature.icon className="w-12 h-12 text-primary" />
-                            <div>
-                                <CardTitle className="font-headline text-xl">{getTranslation(feature.title)}</CardTitle>
-                                <CardDescription>{getTranslation(feature.description)}</CardDescription>
+      
+        <main className="flex-grow p-4 md:p-6 space-y-4">
+            <div className="space-y-3">
+                {featureCards.map((feature, index) => (
+                    <Link href={feature.href} key={index} passHref>
+                        <div className="bg-card text-card-foreground rounded-xl shadow-md hover:shadow-lg transition-shadow p-4 flex items-center">
+                            <div className={`p-3 rounded-lg ${feature.iconBg} mr-4`}>
+                                <feature.icon className={`w-6 h-6 ${feature.iconColor}`} />
                             </div>
-                        </CardHeader>
-                    </Card>
-                </Link>
-            ))}
-        </div>
-      </div>
+                            <div className="flex-grow">
+                                <h2 className="font-bold text-lg">{getTranslation(feature.title)}</h2>
+                                <p className="text-sm text-muted-foreground">{getTranslation(feature.description)}</p>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                    </Link>
+                ))}
+            </div>
+        </main>
     </div>
   );
 }
