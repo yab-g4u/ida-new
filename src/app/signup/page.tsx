@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile, type User } from 'firebase/auth';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth as useFirebaseAuth, useFirestore } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ export default function SignupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
-  const auth = useAuth();
+  const auth = useFirebaseAuth();
   const db = useFirestore();
 
   const form = useForm<z.infer<typeof formSchema>>({

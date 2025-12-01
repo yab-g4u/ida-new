@@ -3,9 +3,10 @@
 import React, { createContext, useState, useEffect, useMemo } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { useAuth as useFirebaseAuth } from '@/firebase';
 import type { ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 interface AuthContextType {
   user: User | null;
@@ -23,15 +24,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const auth = useFirebaseAuth();
 
   useEffect(() => {
+    if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [auth]);
 
   useEffect(() => {
     if (!loading && !user && !publicRoutes.includes(pathname)) {
@@ -40,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loading, user, pathname, router])
 
   const signOut = async () => {
+    if (!auth) return;
     await auth.signOut();
     setUser(null);
     router.push('/login');
@@ -50,12 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     userId: user?.uid || null,
     signOut
-  }), [user, loading]);
+  }), [user, loading, signOut]);
 
   if (loading && !publicRoutes.includes(pathname)) {
       return (
         <div className="flex h-screen w-full flex-col items-center justify-center bg-background text-center">
-            <p>Loading...</p>
+             <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </div>
       )
   }

@@ -9,7 +9,8 @@ import { aiHealthAssistant } from '@/ai/flows/ai-health-assistant';
 import { Loader2, Mic, Send, Sparkles, User, BookText } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { useAuth, useFirestore, useCollection } from '@/firebase';
+import { useAuth as useAppAuth } from '@/hooks/use-auth';
+import { useFirestore, useCollection } from '@/firebase';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { collection, addDoc, serverTimestamp, query, orderBy, doc, setDoc } from 'firebase/firestore';
@@ -28,8 +29,7 @@ export default function AssistantChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
-  const auth = useAuth();
-  const userId = auth?.uid;
+  const { userId } = useAppAuth();
   const db = useFirestore();
   const router = useRouter();
   const params = useParams();
