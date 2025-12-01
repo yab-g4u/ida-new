@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLanguage } from '@/hooks/use-language';
 
 export default function AssistantLayout({
   children,
@@ -21,11 +22,19 @@ export default function AssistantLayout({
   const db = useFirestore();
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const { getTranslation } = useLanguage();
 
   const chatsQuery = userId && db
     ? query(collection(db, `users/${userId}/chats`), orderBy('createdAt', 'desc'))
     : null;
   const { data: chats, loading } = useCollection(chatsQuery);
+
+  const translations = {
+    newChat: { en: 'New Chat', am: 'አዲስ ውይይት', om: 'Haasaa Haaraa' },
+    toggleSidebar: { en: 'Toggle sidebar', am: 'የጎን አሞሌን ቀይር', om: 'Sidebar Jijjiiri' },
+    aiAssistant: { en: 'AI Assistant', am: 'AI ረዳት', om: 'Gargaaraa AI' },
+    defaultChatTitle: { en: 'New Chat', am: 'አዲስ ውይይት', om: 'Haasaa Haaraa' },
+  };
 
   const SidebarContent = () => (
     <>
@@ -33,7 +42,7 @@ export default function AssistantLayout({
         <Link href="/assistant/new" passHref>
           <Button className="w-full">
             <PlusCircle className="mr-2 h-5 w-5" />
-            New Chat
+            {getTranslation(translations.newChat)}
           </Button>
         </Link>
       </div>
@@ -56,7 +65,7 @@ export default function AssistantLayout({
               )}
             >
               <MessageSquare className="h-4 w-4" />
-              <span className="truncate flex-1">{chat.title || 'New Chat'}</span>
+              <span className="truncate flex-1">{chat.title || getTranslation(translations.defaultChatTitle)}</span>
             </Link>
           ))}
         </div>
@@ -97,9 +106,9 @@ export default function AssistantLayout({
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           >
             {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            <span className="sr-only">Toggle sidebar</span>
+            <span className="sr-only">{getTranslation(translations.toggleSidebar)}</span>
           </Button>
-          <h1 className="text-lg font-semibold md:text-xl">AI Assistant</h1>
+          <h1 className="text-lg font-semibold md:text-xl">{getTranslation(translations.aiAssistant)}</h1>
         </header>
         <main className="flex-1 flex flex-col overflow-hidden">
           {children}

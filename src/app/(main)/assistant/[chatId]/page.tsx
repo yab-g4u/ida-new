@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,7 +13,7 @@ import { useAuth } from '@/contexts/auth-provider';
 import { useFirestore, useCollection } from '@/firebase';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { collection, addDoc, serverTimestamp, query, orderBy, doc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, doc, setDoc, updateDoc } from 'firebase/firestore';
 
 interface Message {
   id: string;
@@ -36,12 +35,22 @@ export default function AssistantChatPage() {
   const params = useParams();
   const chatId = params.chatId as string;
 
-  const messagesQuery = userId && db && chatId !== 'new' ? query(
+  const messagesQuery = useMemo(() => userId && db && chatId !== 'new' ? query(
     collection(db, `users/${userId}/chats/${chatId}/messages`),
     orderBy('createdAt')
-  ) : null;
+  ) : null, [userId, db, chatId]);
   
   const { data: messages, loading: messagesLoading } = useCollection(messagesQuery);
+
+  const translations = useMemo(() => ({
+    askAnything: { en: 'Ask our IDA anything', am: 'IDAን ማንኛውንም ነገር ይጠይቁ', om: 'IDA Gaaffii Kamiyyuu Gaafadhaa' },
+    askMeAnythingPlaceholder: { en: 'Ask me anything...', am: 'ማንኛውንም ነገር ጠይቁኝ...', om: 'Gaaffii Kamiyyuu Na Gaafadhaa...' },
+    errorEncountered: { en: 'Sorry, I encountered an error. Please try again.', am: 'ይቅርታ፣ ስህተት አጋጥሞኛል። እባክዎ እንደገና ይሞክሩ።', om: 'Dhiifama, dogoggoraatu mudate. Irra deebi\'ii yaali.' },
+    you: { en: 'You', am: 'እርስዎ', om: 'Isin' },
+    ida: { en: 'IDA', am: 'IDA', om: 'IDA' },
+    thinking: { en: 'Thinking...', am: 'እያሰበ ነው...', om: 'Yaadaa jira...' },
+    citations: { en: 'Citations:', am: 'ማጣቀሻዎች፡', om: 'Wabiiwwan:' },
+  }), [language]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -56,35 +65,29 @@ export default function AssistantChatPage() {
     if (!text.trim() || isLoading || !userId || !db) return;
 
     let currentChatId = chatId;
-    
+    let isNewChat = chatId === 'new';
+
     setInput('');
-    
-    // Create a new chat session if it's a new chat
-    if (chatId === 'new') {
-        const newChatRef = doc(collection(db, `users/${userId}/chats`));
-        await setDoc(newChatRef, {
-            title: text.substring(0, 30),
-            createdAt: serverTimestamp(),
-            userId: userId,
-        });
-        currentChatId = newChatRef.id;
-        // Important: Redirect to the new chat ID.
-        // We'll add the user's first message after the redirect.
-        router.push(`/assistant/${currentChatId}`);
-
-        // Add the first message to the newly created chat
-        const userMessage = { text, sender: 'user', createdAt: serverTimestamp() };
-        const messagesRef = collection(db, `users/${userId}/chats/${currentChatId}/messages`);
-        await addDoc(messagesRef, userMessage);
-
-    } else {
-        const userMessage = { text, sender: 'user', createdAt: serverTimestamp() };
-        const messagesRef = collection(db, `users/${userId}/chats/${currentChatId}/messages`);
-        await addDoc(messagesRef, userMessage);
-    }
-    
     setIsLoading(true);
 
+    // Create a new chat session if it's the first message
+    if (isNewChat) {
+      const newChatRef = doc(collection(db, `users/${userId}/chats`));
+      await setDoc(newChatRef, {
+        title: text.substring(0, 30), // Temporary title
+        createdAt: serverTimestamp(),
+        userId: userId,
+      });
+      currentChatId = newChatRef.id;
+      // Navigate to the new chat URL, but don't add to history
+      router.replace(`/assistant/${currentChatId}`);
+    }
+
+    // Add user message to Firestore
+    const userMessage = { text, sender: 'user', createdAt: serverTimestamp() };
+    const messagesRef = collection(db, `users/${userId}/chats/${currentChatId}/messages`);
+    await addDoc(messagesRef, userMessage);
+    
     try {
       const result = await aiHealthAssistant({ query: text, language });
       const botMessage = {
@@ -93,16 +96,25 @@ export default function AssistantChatPage() {
         citations: result.citations,
         createdAt: serverTimestamp(),
       };
-      const messagesRef = collection(db, `users/${userId}/chats/${currentChatId}/messages`);
       await addDoc(messagesRef, botMessage);
+      
+      // If it was a new chat, update the title based on the first interaction
+      if (isNewChat) {
+        const chatDocRef = doc(db, `users/${userId}/chats/${currentChatId}`);
+        // For simplicity, we'll keep the first message as the title. 
+        // A more advanced version could call another AI flow to summarize.
+        await updateDoc(chatDocRef, {
+          title: text.substring(0, 40) + '...'
+        });
+      }
+
     } catch (error) {
       console.error(error);
       const errorMessage = {
-        text: getTranslation({ en: 'Sorry, I encountered an error. Please try again.', am: 'ይቅርታ፣ ስህተት አጋጥሞኛል። እባክዎ እንደገና ይሞክሩ።', om: 'Dhiifama, dogoggoraatu mudate. Irra deebi\'ii yaali.' }),
+        text: getTranslation(translations.errorEncountered),
         sender: 'bot',
         createdAt: serverTimestamp(),
       };
-      const messagesRef = collection(db, `users/${userId}/chats/${currentChatId}/messages`);
       await addDoc(messagesRef, errorMessage);
     }
 
@@ -113,7 +125,7 @@ export default function AssistantChatPage() {
     <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col items-center justify-center p-4 text-center">
         <Sparkles className="h-10 w-10 text-primary mb-4" />
         <h1 className="text-3xl md:text-4xl font-headline text-foreground mb-12">
-            {getTranslation({ en: 'Ask our IDA anything', am: 'IDAን ማንኛውንም ነገር ይጠይቁ', om: 'IDA Gaaffii Kamiyyuu Gaafadhaa' })}
+            {getTranslation(translations.askAnything)}
         </h1>
     </div>
   );
@@ -137,7 +149,7 @@ export default function AssistantChatPage() {
                   </Avatar>
                   
                   <div className="flex-1">
-                      <p className="font-semibold text-foreground mb-1">{message.sender === 'user' ? 'You' : 'IDA'}</p>
+                      <p className="font-semibold text-foreground mb-1">{message.sender === 'user' ? getTranslation(translations.you) : getTranslation(translations.ida)}</p>
                       <div className="text-foreground/90 whitespace-pre-wrap text-sm">
                           {message.text}
                       </div>
@@ -145,7 +157,7 @@ export default function AssistantChatPage() {
                           <Alert className="mt-4 bg-background/50 border-accent">
                               <BookText className="h-4 w-4"/>
                               <AlertDescription className="text-xs">
-                                  <strong>Citations:</strong> {message.citations}
+                                  <strong>{getTranslation(translations.citations)}</strong> {message.citations}
                               </AlertDescription>
                           </Alert>
                       )}
@@ -158,10 +170,10 @@ export default function AssistantChatPage() {
                       <AvatarFallback><Sparkles className="h-5 w-5"/></AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                       <p className="font-semibold text-foreground mb-1">IDA</p>
+                       <p className="font-semibold text-foreground mb-1">{getTranslation(translations.ida)}</p>
                       <div className="flex items-center text-sm">
                           <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                          Thinking...
+                          {getTranslation(translations.thinking)}
                       </div>
                   </div>
                   </div>
@@ -176,7 +188,7 @@ export default function AssistantChatPage() {
             <Textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={getTranslation({ en: 'Ask me anything...', am: 'ማንኛውንም ነገር ጠይቁኝ...', om: 'Gaaffii Kamiyyuu Na Gaafadhaa...' })}
+                placeholder={getTranslation(translations.askMeAnythingPlaceholder)}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -200,5 +212,3 @@ export default function AssistantChatPage() {
     </div>
   );
 }
-
-    
