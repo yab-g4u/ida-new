@@ -6,8 +6,8 @@ import { usePathname } from 'next/navigation';
 import { PlusCircle, MessageSquare, Menu, X } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useCollection } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, query, orderBy } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -19,10 +19,11 @@ export default function AssistantLayout({
   children: React.ReactNode;
 }) {
   const { userId } = useAuth();
+  const db = useFirestore();
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  const chatsQuery = userId
+  const chatsQuery = userId && db
     ? query(collection(db, `users/${userId}/chats`), orderBy('createdAt', 'desc'))
     : null;
   const { data: chats, loading } = useCollection(chatsQuery);

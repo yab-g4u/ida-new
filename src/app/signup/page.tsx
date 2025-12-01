@@ -6,15 +6,15 @@ import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile, type User } from 'firebase/auth';
+import { useAuth, useFirestore } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Mail, KeyRound, Eye, EyeOff, Loader2, User } from 'lucide-react';
+import { Mail, KeyRound, Eye, EyeOff, Loader2, User as UserIcon } from 'lucide-react';
 import { Icons } from '@/components/icons';
 
 const formSchema = z.object({
@@ -28,24 +28,28 @@ export default function SignupPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  const auth = useAuth();
+  const db = useFirestore();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { name: '', email: '', password: '' },
   });
 
-  const createUserDocument = async (user: any, name: string) => {
-    if (!user) return;
+  const createUserDocument = async (user: User, name: string) => {
+    if (!user || !db) return;
     const userRef = doc(db, 'users', user.uid);
     await setDoc(userRef, {
       uid: user.uid,
       email: user.email,
       displayName: name,
       createdAt: serverTimestamp(),
-    });
+    }, { merge: true });
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!auth) return;
     setIsSubmitting(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
@@ -70,6 +74,7 @@ export default function SignupPage() {
   }
 
   async function handleGoogleSignIn() {
+    if (!auth) return;
     setIsSubmitting(true);
     const provider = new GoogleAuthProvider();
     try {
@@ -104,7 +109,7 @@ export default function SignupPage() {
                   <FormLabel className="sr-only">Name</FormLabel>
                   <FormControl>
                     <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                         <Input placeholder="Enter your full name" {...field} className="pl-10" />
                     </div>
                   </FormControl>

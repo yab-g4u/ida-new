@@ -4,6 +4,7 @@ import { AuthProvider } from '@/contexts/auth-provider';
 import { LanguageProvider } from '@/contexts/language-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/contexts/theme-provider';
+import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
   title: 'IDA: Your AI Health Ally',
@@ -24,12 +25,14 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <AuthProvider>
-            <LanguageProvider>
-              {children}
-              <Toaster />
-            </LanguageProvider>
-          </AuthProvider>
+          <FirebaseClientProvider>
+            <AuthProvider>
+              <LanguageProvider>
+                {children}
+                <Toaster />
+              </LanguageProvider>
+            </AuthProvider>
+          </FirebaseClientProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -10,9 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/hooks/use-language';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -28,7 +27,9 @@ type QrInfo = z.infer<typeof formSchema>;
 
 export default function MyQrInfoPage() {
   const { getTranslation } = useLanguage();
-  const { userId } = useAuth();
+  const auth = useAuth();
+  const userId = auth?.uid;
+  const db = useFirestore();
   const { toast } = useToast();
   const [qrData, setQrData] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -45,9 +46,9 @@ export default function MyQrInfoPage() {
   });
 
   const docRef = useMemo(() => {
-    if (!userId) return null;
+    if (!userId || !db) return null;
     return doc(db, 'users', userId, 'qrInfo', 'data');
-  }, [userId]);
+  }, [userId, db]);
 
   useEffect(() => {
     async function fetchQrInfo() {

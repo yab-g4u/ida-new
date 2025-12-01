@@ -9,12 +9,10 @@ import { aiHealthAssistant } from '@/ai/flows/ai-health-assistant';
 import { Loader2, Mic, Send, Sparkles, User, BookText } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useFirestore, useCollection } from '@/firebase';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, doc, setDoc } from 'firebase/firestore';
-import { useCollection } from '@/firebase';
 
 interface Message {
   id: string;
@@ -25,17 +23,19 @@ interface Message {
 }
 
 export default function AssistantChatPage() {
-  const { language, getTranslation } = useLanguage();
+  const { getTranslation, language } = useLanguage();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
-  const { userId } = useAuth();
+  const auth = useAuth();
+  const userId = auth?.uid;
+  const db = useFirestore();
   const router = useRouter();
   const params = useParams();
   const chatId = params.chatId as string;
 
-  const messagesQuery = userId && chatId !== 'new' ? query(
+  const messagesQuery = userId && db && chatId !== 'new' ? query(
     collection(db, `users/${userId}/chats/${chatId}/messages`),
     orderBy('createdAt')
   ) : null;
@@ -52,13 +52,12 @@ export default function AssistantChatPage() {
   }, [messages, isLoading]);
 
   const handleSendMessage = async (text: string) => {
-    if (!text.trim() || isLoading || !userId) return;
+    if (!text.trim() || isLoading || !userId || !db) return;
 
     let currentChatId = chatId;
     
     setInput('');
     
-    // Create new chat session if it's a new chat
     if (chatId === 'new') {
         const newChatRef = doc(collection(db, `users/${userId}/chats`));
         await setDoc(newChatRef, {
@@ -68,6 +67,9 @@ export default function AssistantChatPage() {
         });
         currentChatId = newChatRef.id;
         router.replace(`/assistant/${currentChatId}`);
+        // After redirecting, the rest of the logic will run on the new page
+        // with the new chatId, so we can return here.
+        return; 
     }
 
     const userMessage = { text, sender: 'user', createdAt: serverTimestamp() };
@@ -110,7 +112,7 @@ export default function AssistantChatPage() {
   return (
     <div className="flex flex-col h-full w-full bg-background relative">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-          {messagesLoading ? 
+          {messagesLoading && chatId !== 'new' ? 
             <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div> :
             (!messages || messages.length === 0) ? <div className='flex items-center justify-center h-full'><MainContent /></div> :
           <div className="space-y-8 pb-24 max-w-4xl mx-auto">
