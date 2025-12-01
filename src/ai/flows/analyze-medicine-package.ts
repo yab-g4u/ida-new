@@ -10,7 +10,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const AnalyzeMedicinePackageInputSchema = z.object({
+const AnalyzeMedicinePackageInputSchema = z.object({
   imageDataUri: z
     .string()
     .describe(
@@ -19,7 +19,7 @@ export const AnalyzeMedicinePackageInputSchema = z.object({
 });
 export type AnalyzeMedicinePackageInput = z.infer<typeof AnalyzeMedicinePackageInputSchema>;
 
-export const AnalyzeMedicinePackageOutputSchema = z.object({
+const AnalyzeMedicinePackageOutputSchema = z.object({
   name: z.string().describe('The name of the medicine.'),
   pros: z.string().describe('The benefits or pros of taking this medicine.'),
   cons: z.string().describe('The potential side effects or cons of taking this medicine.'),
