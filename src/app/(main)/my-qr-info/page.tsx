@@ -118,7 +118,7 @@ Emergency Contact: ${data.emergencyContact || 'None'}
   return (
     <div className="p-4 md:p-6 space-y-6">
       <header>
-        <h1 className="font-headline text-4xl text-primary-foreground">{getTranslation(translations.title)}</h1>
+        <h1 className="font-headline text-4xl text-foreground">{getTranslation(translations.title)}</h1>
         <p className="text-muted-foreground">{getTranslation(translations.description)}</p>
       </header>
 

@@ -1,6 +1,7 @@
 
 import { Heart, Plus, type SVGProps } from 'lucide-react';
 import React from 'react';
+import Image from 'next/image';
 
 const Google = (props: SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48px" height="48px" {...props}>
@@ -18,12 +19,10 @@ const Apple = (props: SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
-const Logo = () => (
-    <div className="flex items-center justify-center h-full w-full bg-primary rounded-full">
-        <div className="relative h-1/2 w-1/2">
-            <Heart className="text-primary-foreground h-full w-full" fill="currentColor" />
-            <Plus className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-1/2 w-1/2 text-primary" strokeWidth={4} />
-        </div>
+
+const Logo = (props: React.HTMLAttributes<HTMLDivElement>) => (
+    <div {...props}>
+        <Image src="/logo.png" alt="IDA Logo" width={100} height={100} />
     </div>
 );
 
@@ -33,5 +32,3 @@ export const Icons = {
   apple: Apple,
   logo: Logo
 };
-
-    
