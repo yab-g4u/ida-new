@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -58,6 +59,7 @@ export default function AssistantChatPage() {
     
     setInput('');
     
+    // Create a new chat session if it's a new chat
     if (chatId === 'new') {
         const newChatRef = doc(collection(db, `users/${userId}/chats`));
         await setDoc(newChatRef, {
@@ -66,15 +68,20 @@ export default function AssistantChatPage() {
             userId: userId,
         });
         currentChatId = newChatRef.id;
-        router.replace(`/assistant/${currentChatId}`);
-        // After redirecting, the rest of the logic will run on the new page
-        // with the new chatId, so we can return here.
-        return; 
-    }
+        // Important: Redirect to the new chat ID.
+        // We'll add the user's first message after the redirect.
+        router.push(`/assistant/${currentChatId}`);
 
-    const userMessage = { text, sender: 'user', createdAt: serverTimestamp() };
-    const messagesRef = collection(db, `users/${userId}/chats/${currentChatId}/messages`);
-    await addDoc(messagesRef, userMessage);
+        // Add the first message to the newly created chat
+        const userMessage = { text, sender: 'user', createdAt: serverTimestamp() };
+        const messagesRef = collection(db, `users/${userId}/chats/${currentChatId}/messages`);
+        await addDoc(messagesRef, userMessage);
+
+    } else {
+        const userMessage = { text, sender: 'user', createdAt: serverTimestamp() };
+        const messagesRef = collection(db, `users/${userId}/chats/${currentChatId}/messages`);
+        await addDoc(messagesRef, userMessage);
+    }
     
     setIsLoading(true);
 
@@ -86,6 +93,7 @@ export default function AssistantChatPage() {
         citations: result.citations,
         createdAt: serverTimestamp(),
       };
+      const messagesRef = collection(db, `users/${userId}/chats/${currentChatId}/messages`);
       await addDoc(messagesRef, botMessage);
     } catch (error) {
       console.error(error);
@@ -94,6 +102,7 @@ export default function AssistantChatPage() {
         sender: 'bot',
         createdAt: serverTimestamp(),
       };
+      const messagesRef = collection(db, `users/${userId}/chats/${currentChatId}/messages`);
       await addDoc(messagesRef, errorMessage);
     }
 
@@ -179,7 +188,7 @@ export default function AssistantChatPage() {
             />
             <div className="absolute bottom-3 right-3 flex gap-1">
                 <Button type="button" size="icon" variant='ghost' disabled={true}>
-                    <Mic className="cn('h-5 w-5')} />
+                    <Mic className="h-5 w-5" />
                 </Button>
                 <Button type="submit" size="icon" variant="ghost" onClick={() => handleSendMessage(input)} disabled={isLoading || !input.trim()}>
                     <Send className="h-5 w-5" />
@@ -191,3 +200,5 @@ export default function AssistantChatPage() {
     </div>
   );
 }
+
+    
