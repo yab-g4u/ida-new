@@ -3,19 +3,19 @@
     {
       "id": "onboarding1",
       "description": "An illustration showing a magnifying glass over a book, representing learning and search.",
-      "imageUrl": "https://images.unsplash.com/photo-1693829957142-51ccfb7ce222?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxsZWFybmluZyUyMHNlYXJjaHxlbnwwfHx8fDE3NjQ0ODkyODV8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "learning search"
+      "imageUrl": "https://images.unsplash.com/photo-1584432810601-6c7f27d2362b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxtZWRpY2luZSUyMGJvdHRsZXxlbnwwfHx8fDE3NjQ1NjI0NTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "medicine search"
     },
     {
       "id": "onboarding2",
       "description": "An illustration of a camera scanning a medicine bottle.",
-      "imageUrl": "https://images.unsplash.com/photo-1691935152546-3a9e05f4010b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxzY2FuJTIwbWVkaWNpbmV8ZW58MHx8fHwxNzY0NDg5Mjg1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtZWRpY2luZSUyMHBhY2thZ2luZ3xlbnwwfHx8fDE3NjQ1NjI1MTB8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "scan medicine"
     },
     {
       "id": "onboarding3",
       "description": "An illustration showing a map with pins, representing finding nearby help.",
-      "imageUrl": "https://images.unsplash.com/photo-1542909359-544eb870c007?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxtYXAlMjBsb2NhdGlvbnxlbnwwfHx8fDE3NjQ0ODkyODR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxtYXAlMjBsb2NhdGlvbnxlbnwwfHx8fDE3NjQ1NjI1NDN8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "map location"
     },
     {

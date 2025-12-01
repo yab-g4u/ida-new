@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useLanguage, type Language } from '@/hooks/use-language';
 import { Icons } from '@/components/icons';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const languages: { code: Language; name: string; nativeName: string }[] = [
   { code: 'en', name: 'English', nativeName: 'English' },

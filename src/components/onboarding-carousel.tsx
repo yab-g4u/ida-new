@@ -72,7 +72,7 @@ const onboardingSteps = [
 
 export function OnboardingCarousel() {
   const router = useRouter();
-  const { language, getTranslation } = useLanguage();
+  const { getTranslation } = useLanguage();
 
   const handleGetStarted = () => {
     try {
