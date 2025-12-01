@@ -14,3 +14,6 @@ export default function OnboardingPage() {
     }
     router.push('/login');
   }
+
+  return <OnboardingCarousel onOnboardingComplete={handleOnboardingComplete} />;
+}

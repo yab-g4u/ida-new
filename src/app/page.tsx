@@ -49,4 +49,10 @@ export default function Home() {
         }
       } catch (e) {
         // Fallback for environments where localStorage is not available
-        router.replace('/
+        router.replace('/onboarding');
+      }
+    }
+  }, [isClient, isSplashDone, loading, user, router]);
+
+  return <SplashScreen />;
+}
