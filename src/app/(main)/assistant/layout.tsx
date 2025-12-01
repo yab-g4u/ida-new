@@ -22,7 +22,7 @@ export default function AssistantLayout({
   const db = useFirestore();
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const { getTranslation } = useLanguage();
+  const { getTranslation, language } = useLanguage();
 
   const chatsQuery = userId && db
     ? query(collection(db, `users/${userId}/chats`), orderBy('createdAt', 'desc'))

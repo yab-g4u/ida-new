@@ -35,10 +35,12 @@ export default function AssistantChatPage() {
   const params = useParams();
   const chatId = params.chatId as string;
 
-  const messagesQuery = useMemo(() => userId && db && chatId !== 'new' ? query(
-    collection(db, `users/${userId}/chats/${chatId}/messages`),
-    orderBy('createdAt')
-  ) : null, [userId, db, chatId]);
+  const messagesQuery = useMemo(() => (userId && db && chatId !== 'new')
+    ? query(
+        collection(db, `users/${userId}/chats/${chatId}/messages`),
+        orderBy('createdAt')
+      )
+    : null, [userId, db, chatId]);
   
   const { data: messages, loading: messagesLoading } = useCollection(messagesQuery);
 
@@ -65,30 +67,32 @@ export default function AssistantChatPage() {
     if (!text.trim() || isLoading || !userId || !db) return;
 
     let currentChatId = chatId;
-    let isNewChat = chatId === 'new';
+    const isNewChat = chatId === 'new';
 
     setInput('');
     setIsLoading(true);
 
-    // Create a new chat session if it's the first message
-    if (isNewChat) {
-      const newChatRef = doc(collection(db, `users/${userId}/chats`));
-      await setDoc(newChatRef, {
-        title: text.substring(0, 30), // Temporary title
-        createdAt: serverTimestamp(),
-        userId: userId,
-      });
-      currentChatId = newChatRef.id;
-      // Navigate to the new chat URL, but don't add to history
-      router.replace(`/assistant/${currentChatId}`);
-    }
-
-    // Add user message to Firestore
-    const userMessage = { text, sender: 'user', createdAt: serverTimestamp() };
-    const messagesRef = collection(db, `users/${userId}/chats/${currentChatId}/messages`);
-    await addDoc(messagesRef, userMessage);
-    
     try {
+      // 1. Create a new chat document if it's a new chat
+      if (isNewChat) {
+        const newChatRef = doc(collection(db, `users/${userId}/chats`));
+        await setDoc(newChatRef, {
+          title: getTranslation({ en: 'New Chat', am: 'አዲስ ውይይት', om: 'Haasaa Haaraa' }),
+          createdAt: serverTimestamp(),
+          userId: userId,
+        });
+        currentChatId = newChatRef.id;
+        // Navigate immediately but replace to not add to history, the messages will appear as they are added
+        router.replace(`/assistant/${currentChatId}`);
+      }
+
+      const messagesRef = collection(db, `users/${userId}/chats/${currentChatId}/messages`);
+
+      // 2. Add user message to Firestore
+      const userMessage = { text, sender: 'user', createdAt: serverTimestamp() };
+      await addDoc(messagesRef, userMessage);
+      
+      // 3. Get AI response
       const result = await aiHealthAssistant({ query: text, language });
       const botMessage = {
         text: result.response,
@@ -98,24 +102,26 @@ export default function AssistantChatPage() {
       };
       await addDoc(messagesRef, botMessage);
       
-      // If it was a new chat, update the title based on the first interaction
+      // 4. If it was a new chat, update the title based on the first interaction
       if (isNewChat) {
         const chatDocRef = doc(db, `users/${userId}/chats/${currentChatId}`);
-        // For simplicity, we'll keep the first message as the title. 
+        // For simplicity, we'll use the first 40 chars of the user's message as the title.
         // A more advanced version could call another AI flow to summarize.
-        await updateDoc(chatDocRef, {
-          title: text.substring(0, 40) + '...'
-        });
+        const newTitle = text.substring(0, 40) + (text.length > 40 ? '...' : '');
+        await updateDoc(chatDocRef, { title: newTitle });
       }
 
     } catch (error) {
-      console.error(error);
-      const errorMessage = {
-        text: getTranslation(translations.errorEncountered),
-        sender: 'bot',
-        createdAt: serverTimestamp(),
-      };
-      await addDoc(messagesRef, errorMessage);
+      console.error("Error in handleSendMessage:", error);
+      if (currentChatId && currentChatId !== 'new') {
+        const messagesRef = collection(db, `users/${userId}/chats/${currentChatId}/messages`);
+        const errorMessage = {
+          text: getTranslation(translations.errorEncountered),
+          sender: 'bot',
+          createdAt: serverTimestamp(),
+        };
+        await addDoc(messagesRef, errorMessage);
+      }
     }
 
     setIsLoading(false);
