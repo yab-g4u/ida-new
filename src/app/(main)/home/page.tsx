@@ -36,8 +36,8 @@ export default function HomePage() {
   const welcomeSubtitle = user ? `ID: ${user.uid.substring(0, 8)}...` : getTranslation({ en: 'Your AI Health Ally', am: 'የእርስዎ AI የጤና አጋር', om: 'Gargaaraa Fayyaa AI Kee' });
 
   return (
-    <div className="relative container mx-auto p-4 md:p-6 space-y-6 flex flex-col justify-center min-h-[calc(100vh-4rem)]">
-      <div className="absolute inset-0 -z-10">
+    <div className="relative flex flex-col justify-center min-h-[calc(100vh-4rem)]">
+      <div className="absolute inset-0 -z-10 h-full w-full">
         <Prism
             animationType="hover"
             timeScale={0.5}
@@ -46,29 +46,31 @@ export default function HomePage() {
             scale={3.6}
             hueShift={0}
             colorFrequency={1}
-            noise={0.5}
+            noise={0.1}
             glow={1}
           />
       </div>
-      <header className="text-center">
-        <h1 className="font-headline text-4xl md:text-5xl text-primary-foreground">{welcomeTitle}</h1>
-        <p className="text-muted-foreground">{welcomeSubtitle}</p>
-      </header>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto w-full">
-        {featureCards.map((feature, index) => (
-            <Link href={feature.href} key={index} passHref>
-                <Card className="hover:bg-accent/80 bg-background/50 backdrop-blur-sm transition-colors h-full">
-                    <CardHeader className="flex flex-col items-center text-center gap-4 p-4">
-                        <feature.icon className="w-12 h-12 text-primary" />
-                        <div>
-                            <CardTitle className="font-headline text-xl">{getTranslation(feature.title)}</CardTitle>
-                            <CardDescription>{getTranslation(feature.description)}</CardDescription>
-                        </div>
-                    </CardHeader>
-                </Card>
-            </Link>
-        ))}
+      <div className="container mx-auto p-4 md:p-6 space-y-6">
+        <header className="text-center">
+            <h1 className="font-headline text-4xl md:text-5xl text-primary-foreground">{welcomeTitle}</h1>
+            <p className="text-muted-foreground">{welcomeSubtitle}</p>
+        </header>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto w-full">
+            {featureCards.map((feature, index) => (
+                <Link href={feature.href} key={index} passHref>
+                    <Card className="hover:bg-accent/80 bg-background/50 backdrop-blur-sm transition-colors h-full">
+                        <CardHeader className="flex flex-col items-center text-center gap-4 p-4">
+                            <feature.icon className="w-12 h-12 text-primary" />
+                            <div>
+                                <CardTitle className="font-headline text-xl">{getTranslation(feature.title)}</CardTitle>
+                                <CardDescription>{getTranslation(feature.description)}</CardDescription>
+                            </div>
+                        </CardHeader>
+                    </Card>
+                </Link>
+            ))}
+        </div>
       </div>
     </div>
   );
