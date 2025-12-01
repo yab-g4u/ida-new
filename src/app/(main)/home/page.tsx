@@ -10,24 +10,24 @@ const featureCards = [
     { 
         href: '/search-medicine', 
         icon: Search, 
-        iconBg: 'bg-green-100',
-        iconColor: 'text-green-600',
+        iconBg: 'bg-green-100 dark:bg-green-900/50',
+        iconColor: 'text-green-600 dark:text-green-400',
         title: { en: 'Search Medicine Info', am: 'መድሃኒት ፈልግ', om: 'Odeeffannoo Qorichaa Barbaadi' },
         description: { en: 'Find information about your medication.', am: 'ስለ መድሃኒትዎ መረጃ ያግኙ።', om: 'Waa\'ee qoricha keetii odeeffannoo argadhu.' },
     },
     { 
         href: '/locate-pharmacy', 
         icon: MapPin, 
-        iconBg: 'bg-blue-100',
-        iconColor: 'text-blue-600',
+        iconBg: 'bg-blue-100 dark:bg-blue-900/50',
+        iconColor: 'text-blue-600 dark:text-blue-400',
         title: { en: 'Locate Pharmacy', am: 'ፋርማሲ ያግኙ', om: 'Faarmaasii Barbaadi' },
         description: { en: 'Find pharmacies near you.', am: 'በአቅራቢያዎ ያሉ ፋርማሲዎችን ያግኙ።', om: 'Faarmaasiiwwan dhiyoo kee jiran argadhu.' },
     },
     { 
         href: '/my-qr-info', 
         icon: QrCode, 
-        iconBg: 'bg-purple-100',
-        iconColor: 'text-purple-600',
+        iconBg: 'bg-purple-100 dark:bg-purple-900/50',
+        iconColor: 'text-purple-600 dark:text-purple-400',
         title: { en: 'My QR Info', am: 'የእኔ QR መረጃ', om: 'Odeeffannoo QR Koo' },
         description: { en: 'Your emergency health information.', am: 'የእርስዎ የድንገተኛ የጤና መረጃ።', om: 'Odeeffannoo kee kan fayyaa yeroo hatattamaa.' },
     },
@@ -83,7 +83,7 @@ export default function HomePage() {
         </header>
       
         <main className="flex-grow p-4 md:p-6 space-y-4">
-            <div className="space-y-3">
+            <div className="space-y-4">
                 {featureCards.map((feature, index) => (
                     <Link href={feature.href} key={index} passHref>
                         <div className="bg-card text-card-foreground rounded-xl shadow-md hover:shadow-lg transition-shadow p-4 flex items-center">

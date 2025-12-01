@@ -6,12 +6,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { useLanguage } from '@/hooks/use-language';
 import { aiHealthAssistant } from '@/ai/flows/ai-health-assistant';
 import { voiceInputForMedicationQueries } from '@/ai/flows/voice-input-medication-queries';
-import { Loader2, Mic, Send, User, Bot, BookText } from 'lucide-react';
+import { Loader2, Mic, Send, User, Bot, BookText, Sparkles, Languages } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Icons } from '@/components/icons';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 interface Message {
   id: string;
@@ -21,7 +23,7 @@ interface Message {
 }
 
 export default function AssistantPage() {
-  const { language, getTranslation } = useLanguage();
+  const { language, getTranslation, setLanguage } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -33,9 +35,12 @@ export default function AssistantPage() {
 
   useEffect(() => {
     if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+      const scrollElement = scrollAreaRef.current.querySelector('div');
+      if (scrollElement) {
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+      }
     }
-  }, [messages]);
+  }, [messages, isLoading]);
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -58,19 +63,22 @@ export default function AssistantPage() {
 
   useEffect(() => {
     if (recognitionRef.current) {
-        recognitionRef.current.lang = language === 'am' ? 'am-ET' : 'en-US';
+      let langCode = 'en-US';
+      if (language === 'am') langCode = 'am-ET';
+      if (language === 'om') langCode = 'om-ET'; // Note: Oromo may not be fully supported by all browsers
+      recognitionRef.current.lang = langCode;
     }
   }, [language]);
 
-
   const translations = {
-    title: { en: 'AI Health Assistant', am: 'AI የጤና ረዳት', om: 'Gargaaraa Fayyaa AI' },
-    description: { en: 'Ask me anything about your health.', am: 'ስለ ጤናዎ ማንኛውንም ነገር ይጠይቁኝ።', om: 'Waa\'ee fayyaa keetii waanuma fedhe na gaafadhu.' },
-    placeholder: { en: 'Type your health question...', am: 'የጤና ጥያቄዎን ይተይቡ...', om: 'Gaaffii fayyaa kee barreessi...' },
+    title: { en: 'IDA', am: 'IDA', om: 'IDA' },
+    description: { en: 'Your AI Health Ally', am: 'የእርስዎ AI የጤና ረዳት', om: 'Gargaaraa Fayyaa AI Keessan' },
+    placeholder: { en: 'Message IDA...', am: 'ለIDA መልዕክት ይላኩ...', om: 'IDA ergaa...' },
+    hello: { en: 'Hello, how can I help you today?', am: 'ሰላም፣ ዛሬ እንዴት ልረዳዎት እችላለሁ?', om: 'Akkam, har\'a akkamittiin si gargaaruu danda\'aa?' },
   };
 
   const handleSendMessage = async (query: string) => {
-    if (!query.trim()) return;
+    if (!query.trim() || isLoading) return;
 
     const userMessage: Message = { id: Date.now().toString(), text: query, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
@@ -114,7 +122,6 @@ export default function AssistantPage() {
     setIsLoading(true);
     
     try {
-      // Use the existing voice flow which is language-aware
       const result = await voiceInputForMedicationQueries({ query, language });
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -134,88 +141,117 @@ export default function AssistantPage() {
     setIsLoading(false);
   }
 
+  const MainContent = () => (
+    <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col items-center justify-center p-4">
+        <div className="text-center">
+            <h1 className="text-5xl md:text-6xl font-headline bg-gradient-to-r from-primary to-blue-400 text-transparent bg-clip-text font-bold">
+                {getTranslation(translations.hello)}
+            </h1>
+        </div>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col h-full p-4 space-y-4">
-      <header className="text-center">
-        <h1 className="font-headline text-4xl text-primary-foreground">{getTranslation(translations.title)}</h1>
-        <p className="text-muted-foreground">{getTranslation(translations.description)}</p>
+    <div className="flex flex-col h-full w-full">
+      <header className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center gap-2">
+            <Sparkles className="h-6 w-6 text-primary" />
+            <h1 className="text-lg font-semibold">{getTranslation(translations.title)}</h1>
+        </div>
+        <LanguageSwitcher />
       </header>
       
-      <ScrollArea className="flex-1 rounded-md border p-4" ref={scrollAreaRef}>
-        <div className="space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={cn(
-                'flex items-end gap-2',
-                message.sender === 'user' ? 'justify-end' : 'justify-start'
-              )}
-            >
-              {message.sender === 'bot' && (
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback><Bot className="h-5 w-5"/></AvatarFallback>
-                </Avatar>
-              )}
-              <div
-                className={cn(
-                  'max-w-xs rounded-lg p-3 text-sm md:max-w-md',
-                  message.sender === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
+      <div className="flex-1 flex flex-col items-center w-full">
+        <ScrollArea className="w-full max-w-4xl flex-1 p-4" ref={scrollAreaRef}>
+            {messages.length === 0 ? <MainContent /> :
+            <div className="space-y-6">
+                {messages.map((message) => (
+                    <div
+                    key={message.id}
+                    className={cn(
+                        'flex items-start gap-4',
+                        message.sender === 'user' ? 'justify-end' : 'justify-start'
+                    )}
+                    >
+                    {message.sender === 'bot' && (
+                        <Avatar className="h-8 w-8">
+                            <AvatarFallback><Sparkles className="h-5 w-5"/></AvatarFallback>
+                        </Avatar>
+                    )}
+                    <div className="max-w-xl">
+                        <p className="font-semibold text-foreground mb-1">{message.sender === 'user' ? 'You' : 'IDA'}</p>
+                        <div
+                            className={cn(
+                            'rounded-lg p-3 text-sm ',
+                            message.sender === 'user'
+                                ? 'bg-muted rounded-bl-none'
+                                : 'bg-transparent'
+                            )}
+                        >
+                            <p className="whitespace-pre-wrap">{message.text}</p>
+                            {message.citations && (
+                                <Alert className="mt-4 bg-background/50 border-accent">
+                                    <BookText className="h-4 w-4"/>
+                                    <AlertDescription className="text-xs">
+                                        <strong>Citations:</strong> {message.citations}
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                        </div>
+                    </div>
+
+                    {message.sender === 'user' && (
+                        <Avatar className="h-8 w-8">
+                            <AvatarFallback><User className="h-5 w-5"/></AvatarFallback>
+                        </Avatar>
+                    )}
+                    </div>
+                ))}
+                {isLoading && (
+                    <div className="flex items-start gap-4 justify-start">
+                    <Avatar className="h-8 w-8">
+                        <AvatarFallback><Sparkles className="h-5 w-5"/></AvatarFallback>
+                    </Avatar>
+                    <div className="max-w-xl">
+                         <p className="font-semibold text-foreground mb-1">IDA</p>
+                        <div className="bg-transparent rounded-lg p-3 flex items-center">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                        </div>
+                    </div>
+                    </div>
                 )}
-              >
-                <p className="whitespace-pre-wrap">{message.text}</p>
-                {message.citations && (
-                    <Alert className="mt-2 bg-background/50">
-                        <BookText className="h-4 w-4"/>
-                        <AlertDescription className="text-xs">
-                            <strong>Citations:</strong> {message.citations}
-                        </AlertDescription>
-                    </Alert>
-                )}
-              </div>
-              {message.sender === 'user' && (
-                <Avatar className="h-8 w-8">
-                    <AvatarFallback><User className="h-5 w-5"/></AvatarFallback>
-                </Avatar>
-              )}
             </div>
-          ))}
-          {isLoading && (
-            <div className="flex items-end gap-2 justify-start">
-               <Avatar className="h-8 w-8">
-                  <AvatarFallback><Bot className="h-5 w-5"/></AvatarFallback>
-                </Avatar>
-              <div className="bg-muted rounded-lg p-3 flex items-center">
-                <Loader2 className="h-5 w-5 animate-spin" />
-              </div>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-      
-      <div className="relative">
-        <Textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={getTranslation(translations.placeholder)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSendMessage(input);
             }
-          }}
-          className="pr-24"
-        />
-        <div className="absolute bottom-2 right-2 flex gap-1">
-          <Button type="button" size="icon" variant={isRecording ? 'destructive' : 'ghost'} onClick={handleVoiceInput} disabled={isLoading || !recognitionRef.current}>
-            <Mic className={cn('h-5 w-5', isRecording && 'animate-pulse')} />
-          </Button>
-          <Button type="submit" size="icon" onClick={() => handleSendMessage(input)} disabled={isLoading}>
-            <Send className="h-5 w-5" />
-          </Button>
-        </div>
+        </ScrollArea>
       </div>
+
+      <footer className="w-full p-4 border-t bg-background">
+        <div className="max-w-4xl mx-auto">
+            <div className="relative rounded-full border bg-muted focus-within:ring-2 focus-within:ring-ring">
+            <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={getTranslation(translations.placeholder)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(input);
+                    }
+                }}
+                className="bg-transparent border-none rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 pr-24 min-h-[50px] max-h-48 resize-none"
+                rows={1}
+            />
+            <div className="absolute bottom-2.5 right-3 flex gap-1">
+                <Button type="button" size="icon" variant={isRecording ? 'destructive' : 'ghost'} onClick={handleVoiceInput} disabled={isLoading || !recognitionRef.current}>
+                    <Mic className={cn('h-5 w-5', isRecording && 'animate-pulse')} />
+                </Button>
+                <Button type="submit" size="icon" onClick={() => handleSendMessage(input)} disabled={isLoading || !input.trim()}>
+                    <Send className="h-5 w-5" />
+                </Button>
+            </div>
+            </div>
+        </div>
+      </footer>
     </div>
   );
 }
