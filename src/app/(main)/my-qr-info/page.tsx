@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/hooks/use-language';
-import { useAuth as useAppAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/auth-provider';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,7 +28,7 @@ type QrInfo = z.infer<typeof formSchema>;
 
 export default function MyQrInfoPage() {
   const { getTranslation } = useLanguage();
-  const { userId } = useAppAuth();
+  const { userId } = useAuth();
   const db = useFirestore();
   const { toast } = useToast();
   const [qrData, setQrData] = useState('');

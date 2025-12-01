@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/auth-provider';
 import { Icons } from '@/components/icons';
 
 function SplashScreen() {
@@ -18,20 +18,14 @@ function SplashScreen() {
 export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuth();
-  const [isSplashDone, setIsSplashDone] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
-    const timer = setTimeout(() => {
-      setIsSplashDone(true);
-    }, 3000); // 3-second splash screen
-
-    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (isClient && isSplashDone && !loading) {
+    if (isClient && !loading) {
       try {
         const languageSelected = localStorage.getItem('languageSelected');
         if (!languageSelected) {
@@ -49,10 +43,14 @@ export default function Home() {
         }
       } catch (e) {
         // Fallback for environments where localStorage is not available
-        router.replace('/onboarding');
+        if (user) {
+            router.replace('/home');
+        } else {
+            router.replace('/onboarding');
+        }
       }
     }
-  }, [isClient, isSplashDone, loading, user, router]);
+  }, [isClient, loading, user, router]);
 
   return <SplashScreen />;
 }

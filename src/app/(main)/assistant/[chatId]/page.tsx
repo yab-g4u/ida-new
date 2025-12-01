@@ -9,7 +9,7 @@ import { aiHealthAssistant } from '@/ai/flows/ai-health-assistant';
 import { Loader2, Mic, Send, Sparkles, User, BookText } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { useAuth as useAppAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/auth-provider';
 import { useFirestore, useCollection } from '@/firebase';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -29,7 +29,7 @@ export default function AssistantChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
-  const { userId } = useAppAuth();
+  const { userId } = useAuth();
   const db = useFirestore();
   const router = useRouter();
   const params = useParams();
@@ -179,7 +179,7 @@ export default function AssistantChatPage() {
             />
             <div className="absolute bottom-3 right-3 flex gap-1">
                 <Button type="button" size="icon" variant='ghost' disabled={true}>
-                    <Mic className={cn('h-5 w-5')} />
+                    <Mic className="cn('h-5 w-5')} />
                 </Button>
                 <Button type="submit" size="icon" variant="ghost" onClick={() => handleSendMessage(input)} disabled={isLoading || !input.trim()}>
                     <Send className="h-5 w-5" />

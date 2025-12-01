@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Search, MapPin, QrCode, ChevronRight, User, Settings, ShieldCheck, BrainCircuit, Clock, HeartPulse } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/auth-provider';
 import { useLanguage } from '@/hooks/use-language';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useEffect, useState } from 'react';
@@ -23,7 +23,7 @@ const featureCards = [
         iconBg: 'bg-blue-100 dark:bg-blue-900/50',
         iconColor: 'text-blue-600 dark:text-blue-400',
         title: { en: 'Locate Pharmacy', am: 'ፋርማሲ ያግኙ', om: 'Faarmaasii Barbaadi' },
-        description: { en: 'Find pharmacies near you.', am: 'በአቅራቢያዎ ያሉ ፋርማሲዎችን ያግኙ።', om: 'Faarmaasiiwwan dhiyoo kee jiran argadhu.' },
+        description: { en: 'Find pharmacies near you.', am: 'በአቅራቢያዎ ያሉ ፋርマሲዎችን ያግኙ።', om: 'Faarmaasiiwwan dhiyoo kee jiran argadhu.' },
     },
     { 
         href: '/my-qr-info', 

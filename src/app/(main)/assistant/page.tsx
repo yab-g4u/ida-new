@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/auth-provider';
 import { useCollection, useFirestore } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
