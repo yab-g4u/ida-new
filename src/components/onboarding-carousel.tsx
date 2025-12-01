@@ -1,7 +1,6 @@
 'use client';
 
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import {
@@ -13,7 +12,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/hooks/use-language';
-import { ArrowRight, MoveRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import React from 'react';
 import { Icons } from './icons';
 
@@ -73,8 +72,7 @@ const onboardingSteps = [
 ];
 
 
-export function OnboardingCarousel() {
-  const router = useRouter();
+export function OnboardingCarousel({ onOnboardingComplete }: { onOnboardingComplete: () => void }) {
   const { getTranslation } = useLanguage();
   const [api, setApi] = React.useState<CarouselApi>()
   const [current, setCurrent] = React.useState(0)
@@ -96,23 +94,14 @@ export function OnboardingCarousel() {
       if (api.canScrollNext()) {
         api.scrollNext();
       } else {
-        handleGetStarted();
+        onOnboardingComplete();
       }
     }
   }
   
   const handleSkip = () => {
-    handleGetStarted();
+    onOnboardingComplete();
   }
-
-  const handleGetStarted = () => {
-    try {
-      localStorage.setItem('onboardingComplete', 'true');
-    } catch (e) {
-      console.warn('Could not save onboarding status to localStorage.');
-    }
-    router.push('/home');
-  };
 
   return (
     <div className="h-screen w-full flex flex-col bg-background">
@@ -167,7 +156,7 @@ export function OnboardingCarousel() {
                     <Icons.logo className="h-24 w-24" />
                     <h2 className="font-headline text-4xl mt-6">{getTranslation({en: "Let's get started!", am: "እንጀምር!", om: "Hajaa Jalqabnu!"})}</h2>
                     <p className="mt-2 text-muted-foreground max-w-sm">{getTranslation({en: "Enjoy the features we've provided, and stay healthy!", am: "ባቀረብናቸው ባህሪያት ይደሰቱ እና ጤናማ ይሁኑ!", om: "Amaloota isiniif qophoofneen gammadaa, fayyaa ta'aatii!"})}</p>
-                    <Button onClick={handleGetStarted} className="mt-12 w-full max-w-xs" size="lg">
+                    <Button onClick={onOnboardingComplete} className="mt-12 w-full max-w-xs" size="lg">
                         {getTranslation({ en: 'Continue', am: 'ቀጥል', om: 'Itti Fufi' })}
                     </Button>
                 </div>

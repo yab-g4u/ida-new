@@ -40,17 +40,13 @@ export default function Home() {
         }
 
         const onboardingComplete = localStorage.getItem('onboardingComplete');
-        if (onboardingComplete) {
+        if (user) {
           router.replace('/home');
+        } else if (onboardingComplete) {
+          router.replace('/login');
         } else {
           router.replace('/onboarding');
         }
       } catch (e) {
         // Fallback for environments where localStorage is not available
-        router.replace('/language-select');
-      }
-    }
-  }, [isClient, isSplashDone, loading, router, user]);
-
-  return <SplashScreen />;
-}
+        router.replace('/
