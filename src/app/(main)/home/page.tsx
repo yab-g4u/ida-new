@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Search, MapPin, QrCode, ChevronRight, User, Settings, ShieldCheck, BrainCircuit, Clock, HeartPulse } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
@@ -83,9 +83,11 @@ export default function HomePage() {
   const welcomeSubtitle = getTranslation({ en: 'Your intelligent health assistant', am: 'ብልህ የጤና ረዳትዎ', om: 'Gargaaraa fayyaa kee oo\'annoo qabu' });
 
   useEffect(() => {
-    const tipsForLanguage = healthTips[language];
-    const randomIndex = Math.floor(Math.random() * tipsForLanguage.length);
-    setDailyTip(tipsForLanguage[randomIndex]);
+    if (typeof window !== 'undefined') {
+      const tipsForLanguage = healthTips[language];
+      const randomIndex = Math.floor(Math.random() * tipsForLanguage.length);
+      setDailyTip(tipsForLanguage[randomIndex]);
+    }
   }, [language]);
 
   return (
