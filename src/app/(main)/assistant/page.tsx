@@ -6,14 +6,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { useLanguage } from '@/hooks/use-language';
 import { aiHealthAssistant } from '@/ai/flows/ai-health-assistant';
 import { voiceInputForMedicationQueries } from '@/ai/flows/voice-input-medication-queries';
-import { Loader2, Mic, Send, User, Bot, BookText, Sparkles, Languages } from 'lucide-react';
+import { Loader2, Mic, Send, User, Bot, BookText, Sparkles } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Icons } from '@/components/icons';
-import { LanguageSwitcher } from '@/components/language-switcher';
 
 interface Message {
   id: string;
@@ -23,7 +21,7 @@ interface Message {
 }
 
 export default function AssistantPage() {
-  const { language, getTranslation, setLanguage } = useLanguage();
+  const { language, getTranslation } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -71,10 +69,12 @@ export default function AssistantPage() {
   }, [language]);
 
   const translations = {
-    title: { en: 'IDA', am: 'IDA', om: 'IDA' },
-    description: { en: 'Your AI Health Ally', am: 'የእርስዎ AI የጤና ረዳት', om: 'Gargaaraa Fayyaa AI Keessan' },
-    placeholder: { en: 'Message IDA...', am: 'ለIDA መልዕክት ይላኩ...', om: 'IDA ergaa...' },
-    hello: { en: 'Hello, how can I help you today?', am: 'ሰላም፣ ዛሬ እንዴት ልረዳዎት እችላለሁ?', om: 'Akkam, har\'a akkamittiin si gargaaruu danda\'aa?' },
+    title: { en: 'Ask our IDA anything', am: 'IDAን ማንኛውንም ነገር ይጠይቁ', om: 'IDA Gaaffii Kamiyyuu Gaafadhaa' },
+    suggestionsTitle: { en: 'Suggestions on what to ask IDA', am: 'IDAን ምን እንደሚጠይቁ ጥቆማዎች', om: 'IDA Gaaffiiwwan Akkamii Akka Gaafattan Yaada' },
+    suggestion1: { en: 'What can I ask you to do?', am: 'ምን እንድሠራ ትፈልጋለህ?', om: 'Maal Akkan Siif Hojjedhu Barbaadda?' },
+    suggestion2: { en: 'What medicine should I take for a headache?', am: 'ለራስ ምታት ምን ዓይነት መድኃኒት ልውሰድ?', om: 'Dhukkubbii Mataatiif Qoricha Akkamii Akkan Fudhadhu?' },
+    suggestion3: { en: 'Where is the nearest pharmacy near me?', am: 'በአቅራቢያዬ ያለው ፋርማሲ የት ነው?', om: 'Faarmaasiin Naannoo Kootti Argamu Eessa?' },
+    placeholder: { en: 'Ask me anything...', am: 'ማንኛውንም ነገር ጠይቁኝ...', om: 'Gaaffii Kamiyyuu Na Gaafadhaa...' },
   };
 
   const handleSendMessage = async (query: string) => {
@@ -142,80 +142,73 @@ export default function AssistantPage() {
   }
 
   const MainContent = () => (
-    <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col items-center justify-center p-4">
-        <div className="text-center">
-            <h1 className="text-5xl md:text-6xl font-headline bg-gradient-to-r from-primary to-blue-400 text-transparent bg-clip-text font-bold">
-                {getTranslation(translations.hello)}
-            </h1>
+    <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col items-center justify-center p-4 text-center">
+        <Sparkles className="h-10 w-10 text-primary mb-4" />
+        <h1 className="text-3xl md:text-4xl font-headline text-foreground mb-12">
+            {getTranslation(translations.title)}
+        </h1>
+
+        <div className='w-full'>
+            <p className="text-sm text-muted-foreground mb-4">{getTranslation(translations.suggestionsTitle)}</p>
+            <div className="flex flex-col sm:flex-row justify-center gap-2">
+                <Button variant="outline" className="bg-background/50" onClick={() => handleSendMessage(getTranslation(translations.suggestion1))}>{getTranslation(translations.suggestion1)}</Button>
+                <Button variant="outline" className="bg-background/50" onClick={() => handleSendMessage(getTranslation(translations.suggestion2))}>{getTranslation(translations.suggestion2)}</Button>
+                <Button variant="outline" className="bg-background/50" onClick={() => handleSendMessage(getTranslation(translations.suggestion3))}>{getTranslation(translations.suggestion3)}</Button>
+            </div>
         </div>
     </div>
   );
 
   return (
-    <div className="flex flex-col h-full w-full">
-      <header className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
-            <h1 className="text-lg font-semibold">{getTranslation(translations.title)}</h1>
-        </div>
-        <LanguageSwitcher />
-      </header>
-      
-      <div className="flex-1 flex flex-col items-center w-full">
+    <div className="flex flex-col h-full w-full relative">
+      <div 
+        className="absolute inset-0 z-0 opacity-20"
+        style={{
+          background: 'radial-gradient(circle at bottom, #E9D5FF 0%, transparent 60%)',
+        }}
+      ></div>
+
+      <div className="flex-1 flex flex-col items-center w-full z-10">
         <ScrollArea className="w-full max-w-4xl flex-1 p-4" ref={scrollAreaRef}>
-            {messages.length === 0 ? <MainContent /> :
-            <div className="space-y-6">
+            {messages.length === 0 ? <div className='flex items-center justify-center h-full'><MainContent /></div> :
+            <div className="space-y-8 pb-24">
                 {messages.map((message) => (
                     <div
-                    key={message.id}
-                    className={cn(
-                        'flex items-start gap-4',
-                        message.sender === 'user' ? 'justify-end' : 'justify-start'
-                    )}
+                        key={message.id}
+                        className={cn('flex items-start gap-4 w-full')}
                     >
-                    {message.sender === 'bot' && (
-                        <Avatar className="h-8 w-8">
-                            <AvatarFallback><Sparkles className="h-5 w-5"/></AvatarFallback>
-                        </Avatar>
-                    )}
-                    <div className="max-w-xl">
+                    <Avatar className={cn('h-8 w-8', message.sender === 'user' ? 'bg-muted' : 'bg-primary text-primary-foreground')}>
+                        <AvatarFallback>
+                            {message.sender === 'user' ? <User className="h-5 w-5"/> : <Sparkles className="h-5 w-5"/>}
+                        </AvatarFallback>
+                    </Avatar>
+                    
+                    <div className="flex-1">
                         <p className="font-semibold text-foreground mb-1">{message.sender === 'user' ? 'You' : 'IDA'}</p>
-                        <div
-                            className={cn(
-                            'rounded-lg p-3 text-sm ',
-                            message.sender === 'user'
-                                ? 'bg-muted rounded-bl-none'
-                                : 'bg-transparent'
-                            )}
-                        >
-                            <p className="whitespace-pre-wrap">{message.text}</p>
-                            {message.citations && (
-                                <Alert className="mt-4 bg-background/50 border-accent">
-                                    <BookText className="h-4 w-4"/>
-                                    <AlertDescription className="text-xs">
-                                        <strong>Citations:</strong> {message.citations}
-                                    </AlertDescription>
-                                </Alert>
-                            )}
+                        <div className="text-foreground/90 whitespace-pre-wrap text-sm">
+                            {message.text}
                         </div>
+                        {message.citations && (
+                            <Alert className="mt-4 bg-background/50 border-accent">
+                                <BookText className="h-4 w-4"/>
+                                <AlertDescription className="text-xs">
+                                    <strong>Citations:</strong> {message.citations}
+                                </AlertDescription>
+                            </Alert>
+                        )}
                     </div>
-
-                    {message.sender === 'user' && (
-                        <Avatar className="h-8 w-8">
-                            <AvatarFallback><User className="h-5 w-5"/></AvatarFallback>
-                        </Avatar>
-                    )}
                     </div>
                 ))}
                 {isLoading && (
-                    <div className="flex items-start gap-4 justify-start">
-                    <Avatar className="h-8 w-8">
+                    <div className="flex items-start gap-4">
+                    <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
                         <AvatarFallback><Sparkles className="h-5 w-5"/></AvatarFallback>
                     </Avatar>
-                    <div className="max-w-xl">
+                    <div className="flex-1">
                          <p className="font-semibold text-foreground mb-1">IDA</p>
-                        <div className="bg-transparent rounded-lg p-3 flex items-center">
-                            <Loader2 className="h-5 w-5 animate-spin" />
+                        <div className="flex items-center text-sm">
+                            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                            Thinking...
                         </div>
                     </div>
                     </div>
@@ -225,9 +218,9 @@ export default function AssistantPage() {
         </ScrollArea>
       </div>
 
-      <footer className="w-full p-4 border-t bg-background">
+      <footer className="w-full p-4 fixed bottom-0 left-0 bg-transparent z-20">
         <div className="max-w-4xl mx-auto">
-            <div className="relative rounded-full border bg-muted focus-within:ring-2 focus-within:ring-ring">
+            <div className="relative rounded-xl border bg-background/80 backdrop-blur-sm shadow-lg focus-within:ring-2 focus-within:ring-ring">
             <Textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -238,14 +231,14 @@ export default function AssistantPage() {
                     handleSendMessage(input);
                     }
                 }}
-                className="bg-transparent border-none rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 pr-24 min-h-[50px] max-h-48 resize-none"
+                className="bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 pr-24 min-h-[56px] max-h-48 resize-none"
                 rows={1}
             />
-            <div className="absolute bottom-2.5 right-3 flex gap-1">
+            <div className="absolute bottom-3 right-3 flex gap-1">
                 <Button type="button" size="icon" variant={isRecording ? 'destructive' : 'ghost'} onClick={handleVoiceInput} disabled={isLoading || !recognitionRef.current}>
                     <Mic className={cn('h-5 w-5', isRecording && 'animate-pulse')} />
                 </Button>
-                <Button type="submit" size="icon" onClick={() => handleSendMessage(input)} disabled={isLoading || !input.trim()}>
+                <Button type="submit" size="icon" variant="ghost" onClick={() => handleSendMessage(input)} disabled={isLoading || !input.trim()}>
                     <Send className="h-5 w-5" />
                 </Button>
             </div>
