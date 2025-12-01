@@ -35,18 +35,18 @@ export default function HomePage() {
   const welcomeSubtitle = user ? `ID: ${user.uid.substring(0, 8)}...` : getTranslation({ en: 'Your AI Health Ally', am: 'የእርስዎ AI የጤና አጋር', om: 'Gargaaraa Fayyaa AI Kee' });
 
   return (
-    <div className="p-4 md:p-6 space-y-6 flex flex-col justify-center h-full">
+    <div className="container mx-auto p-4 md:p-6 space-y-6 flex flex-col justify-center min-h-[calc(100vh-4rem)]">
       <header className="text-center">
-        <h1 className="font-headline text-4xl text-primary-foreground">{welcomeTitle}</h1>
+        <h1 className="font-headline text-4xl md:text-5xl text-primary-foreground">{welcomeTitle}</h1>
         <p className="text-muted-foreground">{welcomeSubtitle}</p>
       </header>
       
-      <div className="flex-1 flex flex-col justify-center gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto w-full">
         {featureCards.map((feature, index) => (
             <Link href={feature.href} key={index} passHref>
                 <Card className="hover:bg-accent transition-colors h-full">
-                    <CardHeader className="flex flex-row items-center gap-4 p-4">
-                        <feature.icon className="w-10 h-10 text-primary" />
+                    <CardHeader className="flex flex-col items-center text-center gap-4 p-4">
+                        <feature.icon className="w-12 h-12 text-primary" />
                         <div>
                             <CardTitle className="font-headline text-xl">{getTranslation(feature.title)}</CardTitle>
                             <CardDescription>{getTranslation(feature.description)}</CardDescription>

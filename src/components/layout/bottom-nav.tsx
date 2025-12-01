@@ -20,7 +20,7 @@ export function BottomNav() {
   ];
 
   return (
-    <footer className="sticky bottom-0 z-10 w-full border-t bg-background/95 backdrop-blur-sm">
+    <footer className="sticky bottom-0 z-10 w-full border-t bg-background/95 backdrop-blur-sm md:hidden">
       <div className="flex h-16 items-center justify-around">
         {navItems.map((item) => {
           const isActive = pathname === item.href;

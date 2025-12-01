@@ -23,12 +23,20 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <div className="flex flex-col items-center gap-1 p-2 text-muted-foreground transition-colors hover:text-primary cursor-pointer">
+        {/* Mobile View Trigger */}
+        <div className="flex flex-col items-center gap-1 p-2 text-muted-foreground transition-colors hover:text-primary cursor-pointer md:hidden">
             <Languages className="h-6 w-6" />
             <span className="text-xs font-medium">Language</span>
         </div>
       </DropdownMenuTrigger>
-      <DropdownMenuContent>
+      <DropdownMenuTrigger asChild>
+        {/* Desktop View Trigger */}
+        <Button variant="ghost" size="icon" className="hidden md:inline-flex">
+          <Languages className="h-5 w-5" />
+          <span className="sr-only">Toggle language</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
         <DropdownMenuRadioGroup value={language} onValueChange={(value) => setLanguage(value as Language)}>
           {languages.map((lang) => (
             <DropdownMenuRadioItem key={lang.code} value={lang.code}>
