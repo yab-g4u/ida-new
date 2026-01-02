@@ -14,16 +14,22 @@ import { useLanguage } from '@/hooks/use-language';
 import { useAuth } from '@/contexts/auth-provider';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, File, X } from 'lucide-react';
+import { Loader2, File, X, User } from 'lucide-react';
 import { getStorage } from 'firebase/storage';
+import { Textarea } from '@/components/ui/textarea';
 
 const formSchema = z.object({
+  name: z.string().min(2, 'Required'),
   bloodType: z.string().min(1, 'Required').max(5, 'Invalid'),
   allergies: z.string().optional(),
   prescriptions: z.string().optional(),
-  emergencyContact: z.string().min(10, 'Enter a valid phone number').optional(),
+  medicalNotes: z.string().optional(),
+  emergencyContact: z.object({
+    name: z.string(),
+    phone: z.string(),
+  }).optional(),
   pdfUrl: z.string().url().optional(),
   pdfFileName: z.string().optional(),
 });
@@ -45,26 +51,29 @@ export default function MyQrInfoPage() {
   const form = useForm<QrInfo>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      name: user?.displayName || '',
       bloodType: '',
       allergies: '',
       prescriptions: '',
-      emergencyContact: '',
+      medicalNotes: '',
+      emergencyContact: { name: '', phone: '' },
       pdfUrl: '',
       pdfFileName: ''
     },
   });
   
   const translations = useMemo(() => ({
-    title: { en: 'My QR Info', am: 'የእኔ QR መረጃ', om: 'Odeeffannoo QR Koo' },
+    title: { en: 'My Medical ID', am: 'የእኔ የህክምና መታወቂያ', om: 'Waraqaa Eenyummaa Yaalaa Koo' },
     description: { en: 'Keep your emergency info up to date. This QR code is your digital medical ID.', am: 'የድንገተኛ ጊዜ መረጃዎን ወቅታዊ ያድርጉ። ይህ የQR ኮድ የእርስዎ ዲጂታል የህክምና መታወቂያ ነው።', om: 'Odeeffannoo yeroo hatattamaa kee haaromsi. Koodiin QR kun waraqaa eenyummaa yaalaa dijitaalaa keeti.' },
+    name: {en: 'Full Name', am: 'ሙሉ ስም', om: 'Maqaa Guutuu'},
     bloodType: { en: 'Blood Type', am: 'የደም አይነት', om: 'Gosa Dhiigaa' },
     bloodTypePlaceholder: { en: 'e.g., A+', am: 'ለምሳሌ፣ A+', om: 'Fkn, A+' },
     allergies: { en: 'Allergies', am: 'አለርጂዎች', om: 'Aleerjiiwwan' },
     allergiesPlaceholder: { en: 'e.g., Peanuts, Penicillin', am: 'ለምሳሌ፣ ኦቾሎኒ፣ ፔኒሲሊን', om: 'Fkn, Ocholoonii, Penisiliinii' },
     prescriptions: { en: 'Current Prescriptions', am: 'የአሁኑ የሐኪም ማዘዣዎች', om: 'Ajajawwan Qorichaa Ammaa' },
     prescriptionsPlaceholder: { en: 'e.g., Amoxicillin 500mg', am: 'ለምሳሌ፣ አሞክሲሲሊን 500mg', om: 'Fkn, Amoxicillin 500mg' },
-    emergencyContact: { en: 'Emergency Contact', am: 'የድንገተኛ ጊዜ ዕውቂያ', om: 'Quunnamtii Yeroo Hatattamaa' },
-    emergencyContactPlaceholder: { en: 'e.g., +1234567890', am: 'ለምሳሌ፣ +1234567890', om: 'Fkn, +1234567890' },
+    medicalNotes: {en: 'Medical Notes', am: 'የህክምና ማስታወሻዎች', om: 'Yaadannoowwan Yaalaa'},
+    medicalNotesPlaceholder: {en: 'Chronic conditions, past surgeries, etc.', am: 'ሥር የሰደዱ በሽታዎች፣ ያለፉ ቀዶ ጥገናዎች፣ ወዘተ.', om: 'Dhukkuboota yeroo dheeraa, baqaqsanii yaaluu darbe, kkf.'},
     saveBtn: { en: 'Save Information', am: 'መረጃ አስቀምጥ', om: 'Odeeffannoo Olkaa\'i' },
     qrTitle: { en: 'Your Emergency QR Code', am: 'የእርስዎ የድንገተኛ QR ኮድ', om: 'Koodii QR Ariifachiisaa Kee' },
     uploadPdf: { en: 'Upload Medical PDF', am: 'የህክምና PDF ስቀል', om: 'PDF Yaalaa Ol-Guuti' },
@@ -82,18 +91,21 @@ export default function MyQrInfoPage() {
     errorTitle: {en: "Error", am: "ስህተት", om: "Dogoggora"},
     successTitle: {en: "Success", am: "ተሳክቷል", om: "Milkaa'eera"},
     invalidFileTitle: {en: "Invalid File", am: "የማይሰራ ፋይል", om: "Faayilii Sirrii Hin Taane"},
+    uniqueId: {en: "Your Unique ID", am: "የእርስዎ ልዩ መታወቂያ", om: "Eenyummaa Kee Isa Addaa"},
   }), [getTranslation]);
   
   const generateQrData = useCallback((data: Partial<QrInfo>) => {
-    if (!data.bloodType) {
+    if (!data.name || !data.bloodType) {
       setQrData('');
       return;
     }
     const dataForQr = {
+        name: data.name || 'N/A',
         bloodType: data.bloodType || 'N/A',
         allergies: data.allergies || 'None',
         prescriptions: data.prescriptions || 'None',
-        emergencyContact: data.emergencyContact || 'None',
+        medicalNotes: data.medicalNotes || 'None',
+        emergencyContact: data.emergencyContact?.name ? `${data.emergencyContact.name} (${data.emergencyContact.phone})` : 'None',
         pdfUrl: data.pdfUrl || 'None',
     };
     const dataString = JSON.stringify(dataForQr, null, 2);
@@ -102,7 +114,10 @@ export default function MyQrInfoPage() {
 
   useEffect(() => {
     async function fetchQrInfo() {
-      if (!user?.uid || !db) return;
+      if (!user?.uid || !db) {
+          setIsLoading(false);
+          return;
+      };
 
       setIsLoading(true);
       try {
@@ -116,7 +131,7 @@ export default function MyQrInfoPage() {
       } catch (error) {
         console.error('Error fetching QR info:', error);
         if (error instanceof Error && error.message.includes('offline')) {
-            // Silently fail on offline error during initial load
+            toast({ title: getTranslation(translations.errorTitle), description: "You appear to be offline. Data could not be loaded.", variant: 'destructive' });
         } else {
             toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.loadingError), variant: 'destructive' });
         }
@@ -125,12 +140,8 @@ export default function MyQrInfoPage() {
       }
     }
     
-    if (user?.uid && db) {
-        fetchQrInfo();
-    } else {
-        setIsLoading(false);
-    }
-  }, [user, db, form, toast, getTranslation, translations, generateQrData]);
+    fetchQrInfo();
+  }, [user, db, toast, getTranslation, translations, generateQrData, form]);
 
 
   async function onSubmit(values: QrInfo) {
@@ -225,6 +236,19 @@ export default function MyQrInfoPage() {
         <h1 className="font-headline text-3xl md:text-4xl text-foreground">{getTranslation(translations.title)}</h1>
         <p className="text-muted-foreground text-sm md:text-base">{getTranslation(translations.description)}</p>
       </header>
+       {user?.uid && (
+        <Card className="bg-muted border-dashed">
+            <CardHeader className='pb-2'>
+                <CardDescription>{getTranslation(translations.uniqueId)}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex items-center gap-2 bg-background p-2 rounded-md">
+                    <User className="h-4 w-4 text-muted-foreground"/>
+                    <p className="text-xs text-muted-foreground font-mono break-all">{user.uid}</p>
+                </div>
+            </CardContent>
+        </Card>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
@@ -234,6 +258,13 @@ export default function MyQrInfoPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+               <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{getTranslation(translations.name)}</FormLabel>
+                    <FormControl><Input placeholder={getTranslation(translations.name)} {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
               <FormField control={form.control} name="bloodType" render={({ field }) => (
                   <FormItem>
                     <FormLabel>{getTranslation(translations.bloodType)}</FormLabel>
@@ -253,11 +284,10 @@ export default function MyQrInfoPage() {
                     <FormControl><Input placeholder={getTranslation(translations.prescriptionsPlaceholder)} {...field} /></FormControl>
                   </FormItem>
                 )} />
-              <FormField control={form.control} name="emergencyContact" render={({ field }) => (
+              <FormField control={form.control} name="medicalNotes" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{getTranslation(translations.emergencyContact)}</FormLabel>
-                    <FormControl><Input type="tel" placeholder={getTranslation(translations.emergencyContactPlaceholder)} {...field} /></FormControl>
-                    <FormMessage />
+                    <FormLabel>{getTranslation(translations.medicalNotes)}</FormLabel>
+                    <FormControl><Textarea rows={4} placeholder={getTranslation(translations.medicalNotesPlaceholder)} {...field} /></FormControl>
                   </FormItem>
                 )} />
 
@@ -265,7 +295,7 @@ export default function MyQrInfoPage() {
                 <FormLabel>{getTranslation(translations.uploadPdf)}</FormLabel>
                 <FormDescription>{getTranslation(translations.uploadPdfDesc)}</FormDescription>
                 <FormControl>
-                    <Input type="file" accept="application/pdf" onChange={handleFileChange} className="pt-2 text-sm"/>
+                    <Input type="file" accept="application/pdf" onChange={handleFileChange} className="pt-2 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"/>
                 </FormControl>
                  {fileToUpload && (
                     <div className="text-sm text-muted-foreground flex items-center gap-2 pt-2">
@@ -316,3 +346,5 @@ export default function MyQrInfoPage() {
     </div>
   );
 }
+
+    

@@ -1,15 +1,14 @@
 'use client';
 
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, MutableRefObject } from 'react';
 import L from 'leaflet';
 import { useLanguage } from '@/hooks/use-language';
 import { mockPharmacies, type Pharmacy } from '@/lib/data';
 
-// Fix for default icon issues in Leaflet with bundlers like Webpack
-const createIcon = () => new L.Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+const createIcon = (url: string) => new L.Icon({
+  iconUrl: url,
+  iconRetinaUrl: url.replace('.png', '-2x.png'),
   shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
@@ -17,10 +16,22 @@ const createIcon = () => new L.Icon({
   shadowSize: [41, 41],
 });
 
+const defaultIcon = createIcon('https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png');
+const userIcon = createIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png');
+
+
 export { type Pharmacy };
 
-export function PharmacyMap() {
-  const mapRef = useRef<L.Map | null>(null);
+type PharmacyMapProps = {
+  initialView: [number, number] | null;
+  setMapRef: MutableRefObject<{ flyTo: (coords: [number, number]) => void } | null>;
+};
+
+export function PharmacyMap({ initialView, setMapRef }: PharmacyMapProps) {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const userMarkerRef = useRef<L.Marker | null>(null);
+
   const { getTranslation } = useLanguage();
 
   const translations = useMemo(() => ({
@@ -29,21 +40,17 @@ export function PharmacyMap() {
   }), [getTranslation]);
   
   useEffect(() => {
-    // Prevent map from re-initializing
-    if (mapRef.current) return;
+    if (mapInstanceRef.current || !mapContainerRef.current) return;
 
     const mapTilerApiKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '7QM1kFuQqp5kD5Blg8oX';
     const tileLayerUrl = `https://api.maptiler.com/maps/openstreetmap/256/{z}/{x}/{y}.jpg?key=${mapTilerApiKey}`;
     const attribution = `&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors & <a href="https://www.maptiler.com/">MapTiler</a>`;
     
-    // Initialize map
-    const map = L.map('map-container').setView([9.0054, 38.7636], 12);
-    mapRef.current = map;
+    const map = L.map(mapContainerRef.current).setView(initialView || [9.0054, 38.7636], 13);
+    mapInstanceRef.current = map;
 
-    // Add tile layer
     L.tileLayer(tileLayerUrl, { attribution }).addTo(map);
 
-    // Add markers
     mockPharmacies.forEach(p => {
         const popupContent = `
             <div class="font-sans">
@@ -58,17 +65,30 @@ export function PharmacyMap() {
                 ${p.phone ? `<p class="m-0 text-sm"><a href="tel:${p.phone}" class="text-blue-600 hover:underline">${p.phone}</a></p>` : ''}
             </div>
         `;
-        L.marker(p.coordinates, { icon: createIcon() })
+        L.marker(p.coordinates, { icon: defaultIcon })
          .addTo(map)
          .bindPopup(popupContent);
     });
 
-    // Cleanup function to run when component unmounts
+    if (setMapRef) {
+      setMapRef.current = {
+        flyTo: (coords: [number, number]) => {
+          map.flyTo(coords, 15);
+          if (userMarkerRef.current) {
+            userMarkerRef.current.setLatLng(coords);
+          } else {
+            userMarkerRef.current = L.marker(coords, { icon: userIcon }).addTo(map).bindPopup('Your Location');
+          }
+        },
+      };
+    }
+
     return () => {
       map.remove();
-      mapRef.current = null;
+      mapInstanceRef.current = null;
     };
-  }, [getTranslation, translations]); // Re-run if language changes to update popups (though map won't re-init)
+  }, [getTranslation, translations, initialView, setMapRef]);
 
-  return <div id="map-container" style={{ height: '100%', width: '100%' }} />;
+  return <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />;
 }
+    

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useLanguage } from '@/hooks/use-language';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, LocateFixed, MapPin, Search } from 'lucide-react';
+import type { Pharmacy } from '@/lib/data';
 
-// Dynamically import the map component to prevent SSR issues
 const PharmacyMap = dynamic(() => import('@/components/pharmacy-map').then((mod) => mod.PharmacyMap), {
   ssr: false,
   loading: () => (
@@ -17,20 +17,38 @@ const PharmacyMap = dynamic(() => import('@/components/pharmacy-map').then((mod)
   ),
 });
 
-
 export default function LocatePharmacyPage() {
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  
+  const [view, setView] = useState<[number, number] | null>(null);
+  const mapRef = useRef<{ flyTo: (coords: [number, number]) => void } | null>(null);
+
   const { getTranslation } = useLanguage();
 
   const handleUseCurrentLocation = () => {
-    // This is a placeholder for leaflet to handle automatically
     setIsLoadingLocation(true);
-    // This can trigger a re-center event on the map if implemented
-    setTimeout(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const userCoords: [number, number] = [latitude, longitude];
+          setView(userCoords);
+          if (mapRef.current) {
+            mapRef.current.flyTo(userCoords);
+          }
+          setIsLoadingLocation(false);
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          alert('Could not get your location. Please ensure location services are enabled.');
+          setIsLoadingLocation(false);
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      alert('Geolocation is not supported by this browser.');
       setIsLoadingLocation(false);
-    }, 1500);
+    }
   };
 
   const translations = useMemo(() => ({
@@ -38,7 +56,7 @@ export default function LocatePharmacyPage() {
     subtitle: { en: 'Find pharmacies in your area in Addis Ababa', am: 'በአዲስ አበባ አካባቢዎ ያሉ ፋርማሲዎችን ያግኙ', om: 'Naannoo kee Addis Ababa keessatti faarmaasiiwwan argadhu' },
     searchPlaceholder: { en: 'Enter your area...', am: 'አካባቢዎን ያስገቡ...', om: 'Naannoo kee galchi...' },
     currentLocationBtn: { en: 'Use my current location', am: 'የአሁን አካባቢዬን ተጠቀም', om: 'Iddoo koo amma jirutti fayyadami' },
-    loadingText: { en: 'Finding nearby pharmacies...', am: 'ቅርብ ፋርማሲዎችን በመፈለግ ላይ...', om: 'Faarmaasiiwwan dhihoo jiran barbaadaa jira...' },
+    loadingText: { en: 'Finding nearby pharmacies...', am: 'ቅርብ ፋርマሲዎችን በመፈለግ ላይ...', om: 'Faarmaasiiwwan dhihoo jiran barbaadaa jira...' },
   }), [getTranslation]);
 
   return (
@@ -75,9 +93,9 @@ export default function LocatePharmacyPage() {
       </header>
 
       <main className="flex-1 relative z-0">
-        <PharmacyMap />
+        <PharmacyMap initialView={view} setMapRef={mapRef} />
         {isLoadingLocation && (
-             <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-10">
+             <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-20">
                  <Loader2 className="h-12 w-12 text-primary animate-spin" />
                  <p className="mt-4 text-foreground font-semibold">{getTranslation(translations.loadingText)}</p>
              </div>
@@ -86,3 +104,4 @@ export default function LocatePharmacyPage() {
     </div>
   );
 }
+    

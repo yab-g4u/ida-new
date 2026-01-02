@@ -2,11 +2,39 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Search, MapPin, QrCode, ChevronRight, User, Settings, ShieldCheck, BrainCircuit, Clock, HeartPulse } from 'lucide-react';
+import { Search, MapPin, QrCode, ChevronRight, User, Settings, ShieldCheck, BrainCircuit, Clock, HeartPulse, Siren, Phone, Mail } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-provider';
 import { useLanguage } from '@/hooks/use-language';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog"
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { Loader2 } from 'lucide-react';
 
 const featureCards = [
     { 
@@ -23,7 +51,7 @@ const featureCards = [
         iconBg: 'bg-blue-100 dark:bg-blue-900/50',
         iconColor: 'text-blue-600 dark:text-blue-400',
         title: { en: 'Locate Pharmacy', am: 'ፋርማሲ ያግኙ', om: 'Faarmaasii Barbaadi' },
-        description: { en: 'Find pharmacies near you.', am: 'በአቅራቢያዎ ያሉ ፋርマሲዎችን ያግኙ።', om: 'Faarmaasiiwwan dhiyoo kee jiran argadhu.' },
+        description: { en: 'Find pharmacies near you.', am: 'በአቅራቢያዎ ያሉ ፋርማሲዎችን ያግኙ።', om: 'Faarmaasiiwwan dhiyoo kee jiran argadhu.' },
     },
     { 
         href: '/my-qr-info', 
@@ -74,21 +102,166 @@ const healthTips = {
   ]
 };
 
+type EmergencyContact = {
+    name: string;
+    phone: string;
+}
+
 export default function HomePage() {
   const { user } = useAuth();
+  const db = useFirestore();
   const { getTranslation, language } = useLanguage();
+  const { toast } = useToast();
+  
   const [dailyTip, setDailyTip] = useState('');
+  const [emergencyContact, setEmergencyContact] = useState<EmergencyContact | null>(null);
+  const [isContactLoading, setIsContactLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [tempContact, setTempContact] = useState<EmergencyContact>({name: '', phone: ''});
   
   const welcomeTitle = getTranslation({ en: `Welcome to IDA`, am: 'ወደ IDA እንኳን በደህና መጡ', om: 'Gara IDA tti Nagaan Dhuftan' });
   const welcomeSubtitle = getTranslation({ en: 'Your intelligent health assistant', am: 'ብልህ የጤና ረዳትዎ', om: 'Gargaaraa fayyaa kee oo\'annoo qabu' });
 
+  const translations = useMemo(() => ({
+    sosSentTitle: {en: "SOS Sent", am: "SOS ተልኳል", om: "SOS Ergameera"},
+    sosSentDesc: {en: "An emergency alert has been sent to your contact.", am: "የድንገተኛ ጊዜ ማንቂያ ወደ እውቂያዎ ተልኳል።", om: "Beeksisa hatattamaa quunnamtii keessaniif ergameera."},
+    sosConfirmTitle: {en: "Confirm SOS?", am: "SOSን ያረጋግጡ?", om: "SOS Mirkaneessituu?"},
+    sosConfirmDesc: {en: "This will send an emergency alert to your saved contact. Are you sure?", am: "ይህ ለተቀመጠው እውቂያዎ የድንገተኛ ጊዜ ማንቂያ ይልካል። እርግጠኛ ነዎት?", om: "Kun quunnamtii kee galmaa'eef beeksisa hatattamaa erga. Ni mirkaneessitaa?"},
+    cancel: {en: "Cancel", am: "ሰርዝ", om: "Haqi"},
+    confirm: {en: "Confirm", am: "አረጋግጥ", om: "Mirkaneessi"},
+    setupContactTitle: {en: "Setup Emergency Contact", am: "የድንገተኛ ጊዜ እውቂያ ያዘጋጁ", om: "Quunnamtii Hatattamaa Qopheessi"},
+    setupContactDesc: {en: "You need to add an emergency contact before using the SOS feature.", am: "የSOS ባህሪን ከመጠቀምዎ በፊት የድንገተኛ ጊዜ እውቂያ ማከል አለብዎት።", om: "Amala SOS fayyadamuu keessan dura quunnamtii hatattamaa dabaluu qabdu."},
+    contactName: {en: "Contact Name", am: "የእውቂያ ስም", om: "Maqaa Quunnamtii"},
+    contactPhone: {en: "Contact Phone", am: "የእውቂያ ስልክ", om: "Bilbila Quunnamtii"},
+    save: {en: "Save", am: "አስቀምጥ", om: "Olkaa'i"},
+    contactSaved: {en: "Emergency contact saved.", am: "የድንገተኛ ጊዜ እውቂያ ተቀምጧል።", om: "Quunnamtiin hatattamaa galmaa'eera."},
+    contactError: {en: "Failed to save contact.", am: "እውቂያን ማስቀመጥ አልተቻለም።", om: "Quunnamtii olkaa'uun hin danda'amne."},
+  }), [language]);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const tipsForLanguage = healthTips[language];
-      const randomIndex = Math.floor(Math.random() * tipsForLanguage.length);
+      const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).valueOf()) / 86400000);
+      const randomIndex = dayOfYear % tipsForLanguage.length;
       setDailyTip(tipsForLanguage[randomIndex]);
     }
   }, [language]);
+
+  useEffect(() => {
+    async function fetchContact() {
+        if (!user?.uid || !db) return;
+        setIsContactLoading(true);
+        const docRef = doc(db, 'qr-info', user.uid);
+        try {
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists() && docSnap.data().emergencyContact) {
+                setEmergencyContact(docSnap.data().emergencyContact);
+            } else {
+                setEmergencyContact(null);
+            }
+        } catch (error) {
+            console.error("Error fetching emergency contact:", error);
+            setEmergencyContact(null);
+        } finally {
+            setIsContactLoading(false);
+        }
+    }
+    fetchContact();
+  }, [user, db, isDialogOpen]);
+
+  const handleSendSOS = () => {
+    console.log(`SOS sent to ${emergencyContact?.name} at ${emergencyContact?.phone}`);
+    toast({
+        title: translations.sosSentTitle[language],
+        description: `${translations.sosSentDesc[language]} (${emergencyContact?.name})`,
+    });
+  };
+
+  const handleSaveContact = async () => {
+    if (!user?.uid || !db) return;
+    if (!tempContact.name || !tempContact.phone) {
+        toast({variant: 'destructive', title: 'Validation Error', description: 'Please fill out both fields.'});
+        return;
+    }
+    setIsSaving(true);
+    const docRef = doc(db, 'qr-info', user.uid);
+    try {
+        await setDoc(docRef, { emergencyContact: tempContact }, { merge: true });
+        setEmergencyContact(tempContact);
+        toast({ title: translations.contactSaved[language]});
+        setIsDialogOpen(false);
+    } catch (error) {
+        console.error("Error saving contact:", error);
+        toast({variant: 'destructive', title: translations.contactError[language]});
+    } finally {
+        setIsSaving(false);
+    }
+  }
+
+  const sosButtonContent = () => {
+    if (isContactLoading) {
+        return <Loader2 className="h-6 w-6 animate-spin" />;
+    }
+    if (emergencyContact) {
+        return (
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="w-full h-16 rounded-2xl flex-col">
+                        <Siren className="w-7 h-7 mb-1"/>
+                        <span className="font-bold">EMERGENCY SOS</span>
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{translations.sosConfirmTitle[language]}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {translations.sosConfirmDesc[language]}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{translations.cancel[language]}</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleSendSOS}>{translations.confirm[language]}</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        );
+    }
+    return (
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+                 <Button variant="destructive" className="w-full h-16 rounded-2xl flex-col">
+                    <Siren className="w-7 h-7 mb-1"/>
+                    <span className="font-bold">EMERGENCY SOS</span>
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{translations.setupContactTitle[language]}</DialogTitle>
+                    <DialogDescription>
+                        {translations.setupContactDesc[language]}
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="contact-name">{translations.contactName[language]}</Label>
+                        <Input id="contact-name" value={tempContact.name} onChange={e => setTempContact({...tempContact, name: e.target.value})} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="contact-phone">{translations.contactPhone[language]}</Label>
+                        <Input id="contact-phone" type="tel" value={tempContact.phone} onChange={e => setTempContact({...tempContact, phone: e.target.value})}/>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleSaveContact} disabled={isSaving}>
+                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {translations.save[language]}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -115,7 +288,11 @@ export default function HomePage() {
             </div>
         </header>
       
-        <main className="flex-grow p-4 md:p-6">
+        <main className="flex-grow p-4 md:p-6 space-y-4">
+            <div className='pb-4'>
+                {sosButtonContent()}
+            </div>
+
             <div className="space-y-4">
                 {featureCards.map((feature, index) => (
                     <Link href={feature.href} key={index} passHref>
@@ -146,3 +323,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
