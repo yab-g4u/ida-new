@@ -16,15 +16,8 @@ import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, File, X, Upload } from 'lucide-react';
-import { firebaseConfig } from '@/firebase/config';
-import { initializeApp } from 'firebase/app';
+import { Loader2, File, X } from 'lucide-react';
 import { getStorage } from 'firebase/storage';
-
-// Initialize Firebase Storage
-const app = initializeApp(firebaseConfig);
-const storage = getStorage(app);
-
 
 const formSchema = z.object({
   bloodType: z.string().min(2, 'Required').max(5, 'Invalid'),
@@ -39,13 +32,15 @@ type QrInfo = z.infer<typeof formSchema>;
 
 export default function MyQrInfoPage() {
   const { getTranslation } = useLanguage();
-  const { userId } = useAuth();
+  const { user } = useAuth();
   const db = useFirestore();
   const { toast } = useToast();
   const [qrData, setQrData] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+
+  const storage = useMemo(() => db ? getStorage(db.app) : null, [db]);
 
   const form = useForm<QrInfo>({
     resolver: zodResolver(formSchema),
@@ -59,136 +54,7 @@ export default function MyQrInfoPage() {
     },
   });
 
-  const docRef = useMemo(() => {
-    if (!userId || !db) return null;
-    return doc(db, 'users', userId); // Use a simpler path
-  }, [userId, db]);
-  
-  const generateQrData = (data: QrInfo) => {
-    const dataForQr = {
-        bloodType: data.bloodType,
-        allergies: data.allergies || 'None',
-        prescriptions: data.prescriptions || 'None',
-        emergencyContact: data.emergencyContact || 'None',
-        pdfUrl: data.pdfUrl || 'None',
-    }
-    const dataString = JSON.stringify(dataForQr, null, 2);
-    setQrData(dataString);
-  };
-
-  useEffect(() => {
-    async function fetchQrInfo() {
-      if (!docRef) {
-        setIsLoading(false);
-        return;
-      };
-      setIsLoading(true);
-      try {
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data() as QrInfo;
-          form.reset(data);
-          generateQrData(data);
-        }
-      } catch (error) {
-        console.error('Error fetching QR info:', error);
-        toast({ title: 'Error', description: 'Failed to load your information.', variant: 'destructive' });
-      }
-      setIsLoading(false);
-    }
-    if (userId && db) {
-        fetchQrInfo();
-    }
-  }, [userId, db, docRef, form, toast]);
-
-
-  async function onSubmit(values: QrInfo) {
-    if (!docRef || !userId) {
-      toast({ title: 'Error', description: 'You must be logged in to save data.', variant: 'destructive' });
-      return;
-    }
-    setIsSubmitting(true);
-    let uploadedPdfUrl = values.pdfUrl;
-    let uploadedPdfName = values.pdfFileName;
-
-    try {
-      // Handle PDF upload
-      if (fileToUpload) {
-        // If there's an old PDF, delete it first
-        if (values.pdfUrl) {
-            try {
-                const oldFileRef = ref(storage, values.pdfUrl);
-                await deleteObject(oldFileRef);
-            } catch (deleteError: any) {
-                // Ignore if file not found, as it might have been deleted manually
-                if (deleteError.code !== 'storage/object-not-found') {
-                    console.warn("Could not delete old PDF:", deleteError);
-                }
-            }
-        }
-
-        const fileRef = ref(storage, `user-qr-pdfs/${userId}/${fileToUpload.name}`);
-        const snapshot = await uploadBytes(fileRef, fileToUpload);
-        uploadedPdfUrl = await getDownloadURL(snapshot.ref);
-        uploadedPdfName = fileToUpload.name;
-      }
-
-      const finalValues = {
-        ...values,
-        pdfUrl: uploadedPdfUrl,
-        pdfFileName: uploadedPdfName,
-      };
-
-      await setDoc(docRef, finalValues, { merge: true }); // Use merge to not overwrite other user data
-      generateQrData(finalValues);
-      form.reset(finalValues); // Update form state with new URL
-      setFileToUpload(null);
-      toast({ title: 'Success', description: 'Your information has been saved.' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to save information.', variant: 'destructive' });
-      console.error('Error saving QR info:', error);
-    }
-    setIsSubmitting(false);
-  }
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setFileToUpload(file);
-      // We don't update the form here directly, only on submit
-    } else {
-      toast({ title: 'Invalid File', description: 'Please upload a PDF file.', variant: 'destructive' });
-    }
-  };
-  
-  const removePdf = async () => {
-    if (!userId) return;
-    setIsSubmitting(true);
-    const currentPdfUrl = form.getValues('pdfUrl');
-    if (currentPdfUrl) {
-        try {
-            const fileRef = ref(storage, currentPdfUrl);
-            await deleteObject(fileRef);
-        } catch (error: any) {
-            if (error.code !== 'storage/object-not-found') {
-                 toast({ title: 'Error', description: 'Could not remove the PDF. Please try again.', variant: 'destructive' });
-                 console.error("Error removing PDF:", error);
-                 setIsSubmitting(false);
-                 return;
-            }
-        }
-    }
-    const updatedValues = {
-        ...form.getValues(),
-        pdfUrl: '',
-        pdfFileName: ''
-    };
-    await onSubmit(updatedValues);
-    setIsSubmitting(false);
-  }
-
-
-  const translations = {
+  const translations = useMemo(() => ({
     title: { en: 'My QR Info', am: 'የእኔ QR መረጃ', om: 'Odeeffannoo QR Koo' },
     description: { en: 'Keep your emergency info up to date. This QR code is your digital medical ID.', am: 'የድንገተኛ ጊዜ መረጃዎን ወቅታዊ ያድርጉ። ይህ የQR ኮድ የእርስዎ ዲጂታል የህክምና መታወቂያ ነው።', om: 'Odeeffannoo yeroo hatattamaa kee haaromsi. Koodiin QR kun waraqaa eenyummaa yaalaa dijitaalaa keeti.' },
     bloodType: { en: 'Blood Type', am: 'የደም አይነት', om: 'Gosa Dhiigaa' },
@@ -204,8 +70,152 @@ export default function MyQrInfoPage() {
     uploadPdf: { en: 'Upload Medical PDF', am: 'የህክምና PDF ስቀል', om: 'PDF Yaalaa Ol-Guuti' },
     uploadPdfDesc: { en: 'Upload a PDF with more medical details (optional).', am: 'ተጨማሪ የህክምና ዝርዝሮች ያለው PDF ይስቀሉ (አማራጭ)።', om: 'PDF tarreeffama yaalaa dabalataa qabu ol guuti (filannoo).' },
     uploadedFile: { en: 'Uploaded File:', am: 'የተሰቀለ ፋይል፡', om: 'Faayili Ol-Guutame:'},
-    removeFile: {en: 'Remove', am: 'አስወግድ', om: 'Haqi'}
+    removeFile: {en: 'Remove', am: 'አስወግድ', om: 'Haqi'},
+    newFile: { en: 'New:', am: 'አዲስ፡', om: 'Haaraa:'},
+    loadingError: { en: 'Failed to load your information.', am: 'የእርስዎን መረጃ መጫን አልተቻለም።', om: 'Odeeffannoo kee feesisuun hin danda\'amne.'},
+    loginError: { en: 'You must be logged in to save data.', am: 'መረጃ ለማስቀመጥ መግባት አለብዎት።', om: 'Odeeffannoo olkaa\'uuf seentu galmeessuu qabda.'},
+    saveSuccess: { en: 'Your information has been saved.', am: 'የእርስዎ መረጃ ተቀምጧል።', om: 'Odeeffannoon kee olkaa\'ameera.'},
+    saveError: { en: 'Failed to save information.', am: 'መረጃ ማስቀመጥ አልተቻለም።', om: 'Odeeffannoo olkaa\'uun hin danda\'amne.'},
+    invalidFile: { en: 'Please upload a PDF file.', am: 'እባክዎ የፒዲኤፍ ፋይል ይስቀሉ።', om: 'Maaloo faayilii PDF ol guutaa.'},
+    pdfRemoveError: { en: 'Could not remove the PDF. Please try again.', am: 'ፒዲኤፉን ማስወገድ አልተቻለም። እባክዎ እንደገና ይሞክሩ።', om: 'PDFicha balleessuun hin danda\'amne. Irra deebi\'ii yaali.'},
+    noQrCode: { en: 'Your QR Code will appear here once you save your information.', am: 'የእርስዎ QR ኮድ መረጃዎን ካስቀመጡ በኋላ እዚህ ይታያል።', om: 'Koodiin QR kee odeeffannoo kee erga olkaa\'attee booda asitti mul\'ata.'},
+    errorTitle: {en: "Error", am: "ስህተት", om: "Dogoggora"},
+    successTitle: {en: "Success", am: "ተሳክቷል", om: "Milkaa'eera"},
+    invalidFileTitle: {en: "Invalid File", am: "የማይሰራ ፋይል", om: "Faayilii Sirrii Hin Taane"},
+  }), [getTranslation]);
+  
+  const generateQrData = (data: Partial<QrInfo>) => {
+    const dataForQr = {
+        bloodType: data.bloodType || 'N/A',
+        allergies: data.allergies || 'None',
+        prescriptions: data.prescriptions || 'None',
+        emergencyContact: data.emergencyContact || 'None',
+        pdfUrl: data.pdfUrl || 'None',
+    }
+    const dataString = JSON.stringify(dataForQr, null, 2);
+    setQrData(dataString);
   };
+
+  useEffect(() => {
+    async function fetchQrInfo() {
+      if (!user?.uid || !db) {
+        setIsLoading(false);
+        return;
+      };
+
+      setIsLoading(true);
+      try {
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data() as QrInfo;
+          form.reset(data);
+          generateQrData(data);
+        }
+      } catch (error) {
+        console.error('Error fetching QR info:', error);
+        toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.loadingError), variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    // Only fetch when user and db are available.
+    if (user?.uid && db) {
+        fetchQrInfo();
+    } else {
+        setIsLoading(false);
+    }
+  }, [user, db, form, toast, getTranslation, translations]);
+
+
+  async function onSubmit(values: QrInfo) {
+    if (!user?.uid || !db || !storage) {
+      toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.loginError), variant: 'destructive' });
+      return;
+    }
+    setIsSubmitting(true);
+    const docRef = doc(db, 'users', user.uid);
+
+    try {
+      let uploadedPdfUrl = values.pdfUrl;
+      let uploadedPdfName = values.pdfFileName;
+
+      // Handle PDF upload
+      if (fileToUpload) {
+        // If there's an old PDF, delete it first
+        if (values.pdfUrl) {
+            try {
+                const oldFileRef = ref(storage, values.pdfUrl);
+                await deleteObject(oldFileRef);
+            } catch (deleteError: any) {
+                if (deleteError.code !== 'storage/object-not-found') {
+                    console.warn("Could not delete old PDF:", deleteError);
+                }
+            }
+        }
+
+        const fileRef = ref(storage, `user-qr-pdfs/${user.uid}/${fileToUpload.name}`);
+        const snapshot = await uploadBytes(fileRef, fileToUpload);
+        uploadedPdfUrl = await getDownloadURL(snapshot.ref);
+        uploadedPdfName = fileToUpload.name;
+      }
+
+      const finalValues = {
+        ...values,
+        pdfUrl: uploadedPdfUrl,
+        pdfFileName: uploadedPdfName,
+      };
+
+      await setDoc(docRef, finalValues, { merge: true }); 
+      generateQrData(finalValues);
+      form.reset(finalValues);
+      setFileToUpload(null);
+      toast({ title: getTranslation(translations.successTitle), description: getTranslation(translations.saveSuccess) });
+    } catch (error) {
+      toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.saveError), variant: 'destructive' });
+      console.error('Error saving QR info:', error);
+    } finally {
+        setIsSubmitting(false);
+    }
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === 'application/pdf') {
+      setFileToUpload(file);
+    } else {
+      toast({ title: getTranslation(translations.invalidFileTitle), description: getTranslation(translations.invalidFile), variant: 'destructive' });
+    }
+  };
+  
+  const removePdf = async () => {
+    if (!user?.uid || !storage) return;
+    setIsSubmitting(true);
+    const currentPdfUrl = form.getValues('pdfUrl');
+    
+    if (currentPdfUrl) {
+        try {
+            const fileRef = ref(storage, currentPdfUrl);
+            await deleteObject(fileRef);
+        } catch (error: any) {
+            if (error.code !== 'storage/object-not-found') {
+                 toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.pdfRemoveError), variant: 'destructive' });
+                 console.error("Error removing PDF:", error);
+                 setIsSubmitting(false);
+                 return;
+            }
+        }
+    }
+    // Create an object with only the fields we want to change
+    const updatedValues = {
+        ...form.getValues(),
+        pdfUrl: '',
+        pdfFileName: ''
+    };
+    await onSubmit(updatedValues); // Resubmit form with cleared PDF fields
+    setIsSubmitting(false); // onSubmit will set this, but we do it here just in case.
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -257,7 +267,7 @@ export default function MyQrInfoPage() {
                 </FormControl>
                  {fileToUpload && (
                     <div className="text-sm text-muted-foreground flex items-center gap-2 pt-2">
-                        <File className="h-4 w-4"/> <span>New: {fileToUpload.name}</span>
+                        <File className="h-4 w-4"/> <span>{getTranslation(translations.newFile)} {fileToUpload.name}</span>
                     </div>
                  )}
                  {!fileToUpload && form.getValues('pdfFileName') && (
@@ -291,7 +301,7 @@ export default function MyQrInfoPage() {
                         <QRCode value={qrData} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} bgColor="var(--card)" fgColor="var(--card-foreground)" />
                     ) : (
                         <div className="w-full aspect-square bg-muted rounded-md flex items-center justify-center text-muted-foreground text-center p-4">
-                            <p>Your QR Code will appear here once you save your information.</p>
+                            <p>{getTranslation(translations.noQrCode)}</p>
                         </div>
                     )}
                   </CardContent>
