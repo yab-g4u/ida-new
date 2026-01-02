@@ -11,13 +11,13 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const MedicineSearchChatbotInputSchema = z.object({
+const MedicineSearchChatbotInputSchema = z.object({
   query: z.string().describe('The user question about a medication.'),
   language: z.enum(['am', 'om', 'en']).describe('The preferred language of the user.'),
 });
 export type MedicineSearchChatbotInput = z.infer<typeof MedicineSearchChatbotInputSchema>;
 
-export const MedicineSearchChatbotOutputSchema = z.object({
+const MedicineSearchChatbotOutputSchema = z.object({
   response: z.string().describe('The AI assistant response to the user query.'),
 });
 export type MedicineSearchChatbotOutput = z.infer<typeof MedicineSearchChatbotOutputSchema>;
