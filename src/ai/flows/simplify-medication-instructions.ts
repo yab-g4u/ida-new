@@ -17,14 +17,14 @@ const SimplifyMedicationInstructionsInputSchema = z.object({
     .describe('The complex medication instructions to simplify.'),
   language: z.enum(['am', 'om', 'en']).describe('The language to simplify the instructions into (Amharic, Oromo, or English).'),
 });
-export type SimplifyMedicationInstructionsInput = z.infer<typeof SimplifyMedicationInstructionsInputSchema>;
+type SimplifyMedicationInstructionsInput = z.infer<typeof SimplifyMedicationInstructionsInputSchema>;
 
 const SimplifyMedicationInstructionsOutputSchema = z.object({
   simplifiedInstructions: z
     .string()
     .describe('The simplified medication instructions in the specified language.'),
 });
-export type SimplifyMedicationInstructionsOutput = z.infer<typeof SimplifyMedicationInstructionsOutputSchema>;
+type SimplifyMedicationInstructionsOutput = z.infer<typeof SimplifyMedicationInstructionsOutputSchema>;
 
 export async function simplifyMedicationInstructions(
   input: SimplifyMedicationInstructionsInput

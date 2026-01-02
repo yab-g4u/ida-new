@@ -24,7 +24,7 @@ const VoiceInputForMedicationQueriesInputSchema = z.object({
     ),
   language: z.enum(['am', 'om', 'en']).describe('The language of the query.'),
 });
-export type VoiceInputForMedicationQueriesInput =
+type VoiceInputForMedicationQueriesInput =
   z.infer<typeof VoiceInputForMedicationQueriesInputSchema>;
 
 const VoiceInputForMedicationQueriesOutputSchema = z.object({
@@ -32,7 +32,7 @@ const VoiceInputForMedicationQueriesOutputSchema = z.object({
     .string()
     .describe('The simplified response from the AI health assistant.'),
 });
-export type VoiceInputForMedicationQueriesOutput =
+type VoiceInputForMedicationQueriesOutput =
   z.infer<typeof VoiceInputForMedicationQueriesOutputSchema>;
 
 export async function voiceInputForMedicationQueries(

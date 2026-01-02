@@ -17,7 +17,7 @@ const AnalyzeMedicinePackageInputSchema = z.object({
       "A photo of a medicine package, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
 });
-export type AnalyzeMedicinePackageInput = z.infer<typeof AnalyzeMedicinePackageInputSchema>;
+type AnalyzeMedicinePackageInput = z.infer<typeof AnalyzeMedicinePackageInputSchema>;
 
 const AnalyzeMedicinePackageOutputSchema = z.object({
   name: z.string().describe('The name of the medicine.'),
@@ -25,7 +25,7 @@ const AnalyzeMedicinePackageOutputSchema = z.object({
   cons: z.string().describe('The potential side effects or cons of taking this medicine.'),
   usage: z.string().describe('Instructions on how and how much of the medicine to take.'),
 });
-export type AnalyzeMedicinePackageOutput = z.infer<typeof AnalyzeMedicinePackageOutputSchema>;
+type AnalyzeMedicinePackageOutput = z.infer<typeof AnalyzeMedicinePackageOutputSchema>;
 
 export async function analyzeMedicinePackage(input: AnalyzeMedicinePackageInput): Promise<AnalyzeMedicinePackageOutput> {
   return analyzeMedicinePackageFlow(input);

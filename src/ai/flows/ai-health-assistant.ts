@@ -15,13 +15,13 @@ const AiHealthAssistantInputSchema = z.object({
   query: z.string().describe('The user query related to health.'),
   language: z.enum(['am', 'om', 'en']).describe('The preferred language of the user (Amharic, Oromo, or English).'),
 });
-export type AiHealthAssistantInput = z.infer<typeof AiHealthAssistantInputSchema>;
+type AiHealthAssistantInput = z.infer<typeof AiHealthAssistantInputSchema>;
 
 const AiHealthAssistantOutputSchema = z.object({
   response: z.string().describe('The AI assistant response to the user query.'),
   citations: z.string().optional().describe('Citations for the grounded information.'),
 });
-export type AiHealthAssistantOutput = z.infer<typeof AiHealthAssistantOutputSchema>;
+type AiHealthAssistantOutput = z.infer<typeof AiHealthAssistantOutputSchema>;
 
 export async function aiHealthAssistant(input: AiHealthAssistantInput): Promise<AiHealthAssistantOutput> {
   return aiHealthAssistantFlow(input);
