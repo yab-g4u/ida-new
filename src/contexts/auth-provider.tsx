@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useEffect, useMemo, useContext } from 'react';
 import type { User } from 'firebase/auth';
-import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
 import type { ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -17,7 +17,7 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const publicRoutes = ['/language-select', '/onboarding'];
+const publicRoutes = ['/login', '/signup', '/language-select', '/onboarding'];
 
 function SplashScreen() {
   return (
@@ -42,19 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     };
     
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-      } else {
-        // If no user, automatically sign in anonymously
-        try {
-          const userCredential = await signInAnonymously(auth);
-          setUser(userCredential.user);
-        } catch (error) {
-          console.error("Anonymous sign-in failed:", error);
-          setUser(null);
-        }
-      }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
       setLoading(false);
     });
 
@@ -66,22 +55,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route)) || pathname === '/';
 
-    // With anonymous auth, users are almost always "logged in"
-    // So the primary check is for whether we are on a public setup route.
-    // If we have a user and we are on a setup route, go home.
-    if (user && isPublicRoute) {
-        router.push('/home');
+    if (!user && !isPublicRoute) {
+        router.push('/login');
     }
 
   }, [loading, user, pathname, router]);
 
   const signOut = async () => {
     if (!auth) return;
-    // For anonymous auth, we might just clear state rather than sign out
-    // But for now, standard sign out is fine. A new anonymous user will be created on next load.
     await auth.signOut();
     setUser(null);
-    router.push('/'); // Go to root to restart the auth flow
+    router.push('/login');
   };
 
   const value = useMemo(() => ({
@@ -91,7 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut
   }), [user, loading, signOut]);
 
-  if (loading) {
+  // Show splash screen only on initial load, not for every route change
+  if (loading && !user) {
       return <SplashScreen />;
   }
 

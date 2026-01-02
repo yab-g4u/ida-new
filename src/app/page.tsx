@@ -1,11 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-provider';
 import { Icons } from '@/components/icons';
-import { signInAnonymously } from 'firebase/auth';
-import { useAuth as useFirebaseAuth } from '@/firebase';
 
 function SplashScreen() {
   return (
@@ -20,36 +18,16 @@ function SplashScreen() {
 export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuth();
-  const auth = useFirebaseAuth();
-  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (isClient && !loading) {
-      const handleAuthentication = async () => {
-        if (!auth) return;
-
-        if (user) {
-          // User is already logged in (even anonymously)
-          router.replace('/home');
-        } else {
-          // No user, sign in anonymously
-          try {
-            await signInAnonymously(auth);
-            // The onAuthStateChanged listener in AuthProvider will handle the redirect
-          } catch (error) {
-            console.error('Anonymous sign-in failed:', error);
-            // Handle error case, maybe show an error message
-          }
-        }
-      };
-
-      handleAuthentication();
+    if (!loading) {
+      if (user) {
+        router.replace('/home');
+      } else {
+        router.replace('/language-select');
+      }
     }
-  }, [isClient, loading, user, auth, router]);
+  }, [loading, user, router]);
 
   return <SplashScreen />;
 }
