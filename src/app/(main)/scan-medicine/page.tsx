@@ -33,18 +33,26 @@ export default function ScanMedicinePage() {
   // Initialize the Tesseract worker on component mount
   useEffect(() => {
     const initializeWorker = async () => {
-      const worker = await Tesseract.createWorker({
-        logger: (m: any) => {
-           if (m.status === 'recognizing text') {
-             setOcrStatus(m.status);
-             setOcrProgress(Math.floor(m.progress * 100));
-           }
-        },
-      });
-      await worker.loadLanguage('eng');
-      await worker.initialize('eng');
-      workerRef.current = worker;
-      setIsWorkerReady(true);
+      if (typeof Tesseract === 'undefined') {
+        console.error('Tesseract.js script not loaded');
+        return;
+      }
+      try {
+        const worker = await Tesseract.createWorker({
+          logger: (m: any) => {
+             if (m.status === 'recognizing text') {
+               setOcrStatus('Recognizing text');
+               setOcrProgress(Math.floor(m.progress * 100));
+             }
+          },
+        });
+        await worker.loadLanguage('eng');
+        await worker.initialize('eng');
+        workerRef.current = worker;
+        setIsWorkerReady(true);
+      } catch (err) {
+        console.error("Failed to initialize Tesseract worker", err);
+      }
     };
 
     initializeWorker();
@@ -53,6 +61,7 @@ export default function ScanMedicinePage() {
     return () => {
       workerRef.current?.terminate();
       workerRef.current = null;
+      setIsWorkerReady(false);
     };
   }, []);
 
@@ -99,7 +108,7 @@ export default function ScanMedicinePage() {
     }
 
     setIsProcessing(true);
-    setOcrStatus('Recognizing text...');
+    setOcrStatus('Starting OCR...');
     setOcrProgress(0);
 
     try {
@@ -187,7 +196,7 @@ export default function ScanMedicinePage() {
           </CardContent>
           <CardFooter>
             <Button className="w-full" onClick={processImage} disabled={isProcessing || !isWorkerReady}>
-              {isProcessing ? <Loader2 className="animate-spin mr-2"/> : <ShieldCheck className="mr-2"/>}
+              {isProcessing ? <Loader2 className="animate-spin mr-2"/> : !isWorkerReady ? <Loader2 className="animate-spin mr-2"/> : <ShieldCheck className="mr-2"/>}
               {isWorkerReady ? 'Check Medicine' : 'Preparing Scanner...'}
             </Button>
           </CardFooter>
