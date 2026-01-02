@@ -1,223 +1,278 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Camera, ScanLine, AlertCircle, VideoOff, Loader2, Upload, X } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { analyzeMedicinePackage, type AnalyzeMedicinePackageOutput } from '@/ai/flows/analyze-medicine-package';
 import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import { Camera, Loader2, Upload, X, Wand2, AlertCircle, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { analyzeMedicinePackage, type AnalyzeMedicinePackageOutput } from '@/ai/flows/analyze-medicine-package';
+import { mockMedicineData } from '@/lib/data';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
+
+declare const Tesseract: any;
+
+type VerificationStatus = 'verified' | 'caution' | 'unknown';
 
 export default function ScanMedicinePage() {
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
   const [imageDataUri, setImageDataUri] = useState<string | null>(null);
-  const [showResult, setShowResult] = useState(false);
-  const [result, setResult] = useState<AnalyzeMedicinePackageOutput | null>(null);
-  
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [extractedText, setExtractedText] = useState<string>('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [ocrStatus, setOcrStatus] = useState('');
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
+  const [aiResult, setAiResult] = useState<AnalyzeMedicinePackageOutput | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // Request camera permission
   useEffect(() => {
-    const getCameraPermission = async () => {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setHasCameraPermission(false);
-        return;
-      }
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        setHasCameraPermission(true);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (error) {
-        console.error('Error accessing camera:', error);
-        setHasCameraPermission(false);
-      }
-    };
-
-    if (!imageDataUri) {
-      getCameraPermission();
-    }
-  
+    // Cleanup state if component unmounts
     return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
-      }
+      resetState();
     };
-  }, [imageDataUri]);
-
-  const processImage = async (dataUri: string) => {
-    setIsScanning(true);
-    setResult(null);
-    setShowResult(true);
-    try {
-      const analysisResult = await analyzeMedicinePackage({ imageDataUri: dataUri });
-      setResult(analysisResult);
-    } catch (error) {
-      console.error(error);
-      toast({
-        variant: 'destructive',
-        title: 'Analysis Failed',
-        description: 'Could not analyze the medicine package. Please try again.',
-      });
-      setShowResult(false); // Hide result view on error
-    } finally {
-      setIsScanning(false);
-    }
-  };
-
-  const handleScan = () => {
-    if (videoRef.current) {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const dataUri = canvas.toDataURL('image/jpeg');
-        setImageDataUri(dataUri);
-        processImage(dataUri);
-      }
-    }
-  };
-  
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUri = e.target?.result as string;
-        setImageDataUri(dataUri);
-        processImage(dataUri);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  }, []);
 
   const resetState = () => {
     setImageDataUri(null);
-    setResult(null);
-    setShowResult(false);
-    setIsScanning(false);
+    setExtractedText('');
+    setIsProcessing(false);
+    setOcrProgress(0);
+    setOcrStatus('');
+    setVerificationStatus(null);
+    setAiResult(null);
+    setIsAiLoading(false);
     if(fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }
+  };
 
-  if (showResult) {
+  const handleImageChange = (file: File) => {
+    if (!file) return;
+    resetState();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUri = e.target?.result as string;
+      setImageDataUri(dataUri);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      handleImageChange(file);
+    }
+  };
+
+  const processImage = async () => {
+    if (!imageDataUri) {
+      toast({ variant: 'destructive', title: 'No Image', description: 'Please upload or capture an image first.' });
+      return;
+    }
+
+    setIsProcessing(true);
+    setOcrStatus('Initializing OCR...');
+    setOcrProgress(0);
+
+    try {
+      const worker = await Tesseract.createWorker({
+        logger: (m: any) => {
+          setOcrStatus(m.status);
+          if (m.status === 'recognizing text') {
+            setOcrProgress(Math.floor(m.progress * 100));
+          }
+        },
+      });
+      await worker.loadLanguage('eng');
+      await worker.initialize('eng');
+      const { data: { text } } = await worker.recognize(imageDataUri);
+      await worker.terminate();
+
+      setExtractedText(text);
+      setOcrStatus('OCR Complete');
+      setOcrProgress(100);
+      verifyMedicine(text);
+
+    } catch (error) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'OCR Failed', description: 'Could not extract text from the image.' });
+      setIsProcessing(false);
+    }
+  };
+
+  const verifyMedicine = (text: string) => {
+    const lowercasedText = text.toLowerCase();
+    const medicineName = mockMedicineData.name.toLowerCase();
+    
+    if (lowercasedText.includes(medicineName)) {
+      setVerificationStatus('verified');
+      fetchAiExplanation();
+    } else {
+      setVerificationStatus('unknown');
+      setIsProcessing(false);
+    }
+  };
+
+  const fetchAiExplanation = async () => {
+    if (!imageDataUri) return;
+    setIsAiLoading(true);
+    try {
+      const result = await analyzeMedicinePackage({ imageDataUri: imageDataUri });
+      setAiResult(result);
+    } catch (error) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'AI Analysis Failed', description: 'Could not get an explanation.' });
+    } finally {
+      setIsAiLoading(false);
+      setIsProcessing(false);
+    }
+  };
+
+  if (!imageDataUri) {
     return (
-      <div className="flex flex-col h-full w-full p-4 md:p-6 bg-background">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="font-headline text-3xl">Analysis Result</h1>
-            <Button variant="ghost" size="icon" onClick={resetState}>
-              <X className="h-6 w-6"/>
+      <div className="flex flex-col items-center justify-center h-full p-4 md:p-6 bg-background">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <CardTitle className="font-headline text-3xl">Scan Your Medicine</CardTitle>
+            <CardDescription>Upload or capture an image of the medicine package.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <Button size="lg" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="mr-2 h-5 w-5" />
+              Upload Image
             </Button>
-          </div>
-          {isScanning && !result && (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                  <Loader2 className="h-16 w-16 animate-spin text-primary" />
-                  <p className="mt-4 text-muted-foreground text-lg">Analyzing your medicine...</p>
-              </div>
-          )}
-          {result && (
-              <Card className="w-full flex-1">
-                  <CardHeader>
-                      <CardTitle className="text-2xl font-headline">{result.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                      <div className="space-y-2">
-                          <h3 className="font-bold text-lg text-primary">How to Take</h3>
-                          <p className="text-muted-foreground">{result.usage}</p>
-                      </div>
-                      <div className="space-y-2">
-                          <h3 className="font-bold text-lg text-green-600">Pros</h3>
-                          <p className="text-muted-foreground">{result.pros}</p>
-                      </div>
-                      <div className="space-y-2">
-                          <h3 className="font-bold text-lg text-destructive">Cons</h3>
-                          <p className="text-muted-foreground">{result.cons}</p>
-                      </div>
-                  </CardContent>
-              </Card>
-          )}
+            <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept="image/*" />
+            <Button size="lg" variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Camera className="mr-2 h-5 w-5" />
+               Use Camera
+               <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept="image/*" capture="environment" />
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full p-4 md:p-6 bg-background">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-headline text-3xl">
-            <ScanLine className="h-8 w-8 text-primary" />
-            <span>Scan Medicine</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="relative aspect-square w-full overflow-hidden rounded-md bg-muted border">
-            {hasCameraPermission === null && (
-              <div className="flex flex-col items-center justify-center h-full">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="mt-2 text-muted-foreground">Requesting camera...</p>
-              </div>
-            )}
-            {hasCameraPermission === false && (
-                <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                    <VideoOff className="h-12 w-12 text-destructive" />
-                    <p className="mt-2 text-muted-foreground">
-                        Camera access is required. Please check browser settings or upload an image.
-                    </p>
-                </div>
-            )}
-            <video
-              ref={videoRef}
-              className={`w-full h-full object-cover ${hasCameraPermission ? 'block' : 'hidden'}`}
-              autoPlay
-              playsInline
-              muted
-            />
-          </div>
-        </CardContent>
-        <CardFooter className="flex-col gap-3">
-          <Button 
-            className="w-full"
-            onClick={handleScan} 
-            disabled={!hasCameraPermission || isScanning}
-            size="lg"
-          >
-            <Camera className="mr-2 h-5 w-5" />
-            Scan Package
-          </Button>
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isScanning}
-            size="lg"
-          >
-              <Upload className="mr-2 h-5 w-5" />
-              Upload Image
-          </Button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            className="hidden"
-            accept="image/*"
-          />
-        </CardFooter>
-      </Card>
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="font-headline text-3xl">Verify Medicine</h1>
+        <Button variant="ghost" size="icon" onClick={resetState}><X/></Button>
+      </div>
+      
+      <div className="grid md:grid-cols-2 gap-6 items-start">
+        <Card>
+          <CardHeader>
+            <CardTitle>Captured Image</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Image src={imageDataUri} alt="Medicine Package" width={500} height={500} className="rounded-lg w-full h-auto" />
+          </CardContent>
+          <CardFooter>
+            <Button className="w-full" onClick={processImage} disabled={isProcessing}>
+              {isProcessing ? <Loader2 className="animate-spin mr-2"/> : <ShieldCheck className="mr-2"/>}
+              Check Medicine
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <div className="space-y-6">
+          {isProcessing && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Processing...</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Progress value={ocrProgress} />
+                <p className="text-sm text-muted-foreground text-center">{ocrStatus}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {verificationStatus && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Verification Result</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {verificationStatus === 'verified' && (
+                    <Alert variant="default" className="bg-green-100 dark:bg-green-900/50 border-green-500">
+                      <ShieldCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      <AlertTitle className="text-green-800 dark:text-green-300">Verified</AlertTitle>
+                      <AlertDescription className="text-green-700 dark:text-green-400">
+                        Match found for "{mockMedicineData.name}".
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {verificationStatus === 'unknown' && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-5 w-5" />
+                      <AlertTitle>Unknown Medicine</AlertTitle>
+                      <AlertDescription>
+                        Could not verify the medicine from the image.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <Alert variant="default" className="mt-4 border-amber-500 bg-amber-50 dark:bg-amber-950">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    <AlertTitle className="text-amber-800 dark:text-amber-300">Disclaimer</AlertTitle>
+                    <AlertDescription className="text-amber-700 dark:text-amber-500">
+                      This is for informational purposes only and is not a medical diagnosis. Consult a professional.
+                    </AlertDescription>
+                  </Alert>
+                </CardContent>
+              </Card>
+
+              {extractedText && (
+                <Card>
+                    <CardHeader><CardTitle>Extracted Text</CardTitle></CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted p-3 rounded-md">{extractedText}</p>
+                    </CardContent>
+                </Card>
+              )}
+            </>
+          )}
+
+          {isAiLoading && (
+            <Card>
+              <CardContent className="pt-6 flex flex-col items-center justify-center text-center">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                  <p className="mt-2 text-muted-foreground">Generating AI explanation...</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {aiResult && (
+             <Card className="bg-accent">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 font-headline text-2xl">
+                        <Wand2 /> AI Explanation
+                    </CardTitle>
+                    <CardDescription>Generated by IDA for "{aiResult.name}"</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div>
+                        <h3 className="font-bold text-primary">How to Take</h3>
+                        <p className="text-muted-foreground">{aiResult.usage}</p>
+                    </div>
+                     <div>
+                        <h3 className="font-bold text-green-600">Pros / Benefits</h3>
+                        <p className="text-muted-foreground">{aiResult.pros}</p>
+                    </div>
+                     <div>
+                        <h3 className="font-bold text-destructive">Cons / Side Effects</h3>
+                        <p className="text-muted-foreground">{aiResult.cons}</p>
+                    </div>
+                </CardContent>
+             </Card>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
