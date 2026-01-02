@@ -1,90 +1,99 @@
 'use client';
 
-import 'maplibre-gl/dist/maplibre-gl.css';
-import Map, { Marker, GeolocateControl, NavigationControl } from 'react-map-gl/maplibre';
-import maplibregl from 'maplibre-gl';
-import { MapPin } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import 'leaflet/dist/leaflet.css';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import { useMemo } from 'react';
+import { useLanguage } from '@/hooks/use-language';
 
-// Mock data for pharmacies in Addis Ababa
+// Custom icon for markers
+const markerIcon = new L.Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+  shadowSize: [41, 41],
+});
+
+
 const mockPharmacies = [
-  // Bole Sub-city
-  { id: 1, name: 'Bole Pharmacy', area: 'Bole', coordinates: [8.9949, 38.7925] as [number, number], distance: '4.1', hours: '10PM', phone: '+251 11 456 7890' },
+  { id: 1, name: 'Bole Pharmacy', area: 'Bole', coordinates: [9.005, 38.791] as [number, number], distance: '4.1', hours: '10PM', phone: '+251 11 456 7890' },
   { id: 2, name: 'Medhanealem Pharmacy', area: 'Bole', coordinates: [9.0085, 38.7901] as [number, number], distance: '3.8', hours: '9PM', phone: '+251 11 661 1234' },
-  { id: 3, name: 'Edna Mall Pharmacy', area: 'Bole', coordinates: [9.006, 38.788] as [number, number], distance: '3.5', hours: '11PM', phone: '+251 11 663 5678' },
-
-  // Kirkos Sub-city
   { id: 4, name: 'CityMed Pharmacy', area: 'Kirkos', coordinates: [8.9806, 38.7578] as [number, number], distance: '3.4', hours: '24 Hours', phone: '+251 11 345 6789' },
-  { id: 5, name: 'Meskel Flower Pharmacy', area: 'Kirkos', coordinates: [8.991, 38.765] as [number, number], distance: '2.5', hours: '10PM', phone: '+251 11 551 9876' },
-
-  // Arada Sub-city
   { id: 6, name: 'Arada Pharmacy', area: 'Arada', coordinates: [9.0355, 38.7525] as [number, number], distance: '0.8', hours: '8PM', phone: '+251 11 567 8901' },
-  { id: 7, name: 'Piassa Pharmacy', area: 'Arada', coordinates: [9.033, 38.755] as [number, number], distance: '1.0', hours: '9PM', phone: '+251 11 111 2233' },
-
-  // Lideta Sub-city
   { id: 8, name: 'Lideta Pharmacy', area: 'Lideta', coordinates: [9.015, 38.74] as [number, number], distance: '1.5', hours: '24 Hours', phone: '+251 11 275 4455' },
-
-  // Gulele Sub-city
-  { id: 9, name: 'Gulele Pharmacy', area: 'Gulele', coordinates: [9.045, 38.74] as [number, number], distance: '2.1', hours: '8PM', phone: '+251 11 876 5432' },
-
-  // Yeka Sub-city
-  { id: 10, name: 'Yeka Pharmacy', area: 'Yeka', coordinates: [9.02, 38.81] as [number, number], distance: '5.0', hours: '9PM', phone: '+251 11 654 3210' },
   { id: 11, name: 'Megenagna Pharmacy', area: 'Yeka', coordinates: [9.018, 38.805] as [number, number], distance: '4.8', hours: '24 Hours', phone: '+251 11 660 9988' },
-
-  // Nifas Silk-Lafto Sub-city
-  { id: 12, name: 'Lafto Pharmacy', area: 'Nifas Silk-Lafto', coordinates: [8.95, 38.72] as [number, number], distance: '6.2', hours: '10PM', phone: '+251 11 321 6549' },
-  { id: 13, name: 'Saris Pharmacy', area: 'Nifas Silk-Lafto', coordinates: [8.96, 38.745] as [number, number], distance: '5.5', hours: '9PM', phone: '+251 11 371 8899' },
-  
-  // Akaky Kaliti Sub-city
-  { id: 14, name: 'Akaki Pharmacy', area: 'Akaky Kaliti', coordinates: [8.88, 38.8] as [number, number], distance: '12.0', hours: '8PM', phone: '+251 11 434 1122' },
-
-  // Kolfe Keranio Sub-city
-  { id: 15, name: 'Ayer Tena Pharmacy', area: 'Kolfe Keranio', coordinates: [9.00, 38.68] as [number, number], distance: '7.5', hours: '9PM', phone: '+251 11 279 3344' },
-
-  // Add more pharmacies here
 ];
 
 export type Pharmacy = typeof mockPharmacies[0];
 
-interface PharmacyMapProps {
-    onMarkerClick: (pharmacy: Pharmacy) => void;
-}
+const MapPlaceholder = () => {
+    return (
+      <p>
+        A map is loading...
+      </p>
+    )
+  }
 
-export function PharmacyMap({ onMarkerClick }: PharmacyMapProps) {
-  const [viewState, setViewState] = useState({
-    longitude: 38.7578, // Addis Ababa
-    latitude: 8.9806,
-    zoom: 11,
-  });
+const MapTilerComponent = () => {
+  const { getTranslation } = useLanguage();
+  const map = useMap();
 
-  const mapStyleUrl = `https://api.maptiler.com/maps/openstreetmap/style.json?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`;
+  const mapTilerApiKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '7QM1kFuQqp5kD5Blg8oX';
+  const tileLayerUrl = `https://api.maptiler.com/maps/openstreetmap/{z}/{x}/{y}.jpg?key=${mapTilerApiKey}`;
+  const attribution = `&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors & <a href="https://www.maptiler.com/">MapTiler</a>`;
   
+  const translations = {
+      open24Hours: { en: 'Open 24 hours', am: '24 ሰዓት ክፍት', om: 'Sa\'aatii 24 Banaadha' },
+      closesAt: { en: 'Closes at', am: 'የሚዘጋበት ሰዓት', om: 'Yoom Cufama' },
+  };
+
   const markers = useMemo(() => mockPharmacies.map(p => (
       <Marker
         key={p.id}
-        longitude={p.coordinates[1]}
-        latitude={p.coordinates[0]}
-        anchor="bottom"
-        onClick={(e) => {
-            e.originalEvent.stopPropagation();
-            onMarkerClick(p);
-        }}
+        position={p.coordinates}
+        icon={markerIcon}
       >
-        <MapPin className="h-8 w-8 text-primary cursor-pointer" fill="currentColor" />
+        <Popup>
+            <div className="font-sans">
+                <h3 className="font-bold text-lg m-0 mb-1">{p.name}</h3>
+                <p className="m-0 text-gray-600">{p.area}</p>
+                <p className="m-0 mt-2 text-sm">
+                    {p.hours === '24 Hours' 
+                        ? getTranslation(translations.open24Hours)
+                        : `${getTranslation(translations.closesAt)} ${p.hours}`
+                    }
+                </p>
+                {p.phone && <p className="m-0 text-sm"><a href={`tel:${p.phone}`} className="text-blue-600 hover:underline">{p.phone}</a></p>}
+            </div>
+        </Popup>
       </Marker>
-  )), [onMarkerClick]);
+  )), [getTranslation, translations]);
 
   return (
-    <Map
-      {...viewState}
-      mapLib={maplibregl}
-      onMove={evt => setViewState(evt.viewState)}
-      style={{ width: '100%', height: '100%' }}
-      mapStyle={mapStyleUrl}
-    >
-      <GeolocateControl position="top-right" />
-      <NavigationControl position="top-right" />
-      {markers}
-    </Map>
+    <>
+        <TileLayer url={tileLayerUrl} attribution={attribution} />
+        {markers}
+    </>
   );
+};
+
+
+export function PharmacyMap() {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+  
+    return (
+        <MapContainer 
+            center={[9.0054, 38.7636]} // Centered on Addis Ababa
+            zoom={12} 
+            style={{ height: '100%', width: '100%' }}
+            placeholder={<MapPlaceholder />}
+        >
+          <MapTilerComponent />
+        </MapContainer>
+    );
 }

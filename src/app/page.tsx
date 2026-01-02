@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-provider';
 import { Icons } from '@/components/icons';
+import { signInAnonymously } from 'firebase/auth';
+import { useAuth as useFirebaseAuth } from '@/firebase';
 
 function SplashScreen() {
   return (
@@ -18,6 +20,7 @@ function SplashScreen() {
 export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const auth = useFirebaseAuth();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -26,31 +29,27 @@ export default function Home() {
 
   useEffect(() => {
     if (isClient && !loading) {
-      try {
-        const languageSelected = localStorage.getItem('languageSelected');
-        if (!languageSelected) {
-          router.replace('/language-select');
-          return;
-        }
+      const handleAuthentication = async () => {
+        if (!auth) return;
 
-        const onboardingComplete = localStorage.getItem('onboardingComplete');
         if (user) {
+          // User is already logged in (even anonymously)
           router.replace('/home');
-        } else if (onboardingComplete) {
-          router.replace('/login');
         } else {
-          router.replace('/onboarding');
+          // No user, sign in anonymously
+          try {
+            await signInAnonymously(auth);
+            // The onAuthStateChanged listener in AuthProvider will handle the redirect
+          } catch (error) {
+            console.error('Anonymous sign-in failed:', error);
+            // Handle error case, maybe show an error message
+          }
         }
-      } catch (e) {
-        // Fallback for environments where localStorage is not available
-        if (user) {
-            router.replace('/home');
-        } else {
-            router.replace('/onboarding');
-        }
-      }
+      };
+
+      handleAuthentication();
     }
-  }, [isClient, loading, user, router]);
+  }, [isClient, loading, user, auth, router]);
 
   return <SplashScreen />;
 }

@@ -12,7 +12,8 @@ export default function OnboardingPage() {
     } catch (e) {
       console.warn('Could not save onboarding status to localStorage.');
     }
-    router.push('/login');
+    // After onboarding, the main page will handle the anonymous login
+    router.push('/'); 
   }
 
   return <OnboardingCarousel onOnboardingComplete={handleOnboardingComplete} />;
