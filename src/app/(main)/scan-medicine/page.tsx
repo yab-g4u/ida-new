@@ -18,52 +18,15 @@ type VerificationStatus = 'verified' | 'caution' | 'unknown';
 export default function ScanMedicinePage() {
   const [imageDataUri, setImageDataUri] = useState<string | null>(null);
   const [extractedText, setExtractedText] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState(false); // For OCR + AI
+  const [isProcessing, setIsProcessing] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
   const [ocrStatus, setOcrStatus] = useState('');
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
   const [aiResult, setAiResult] = useState<AnalyzeMedicinePackageOutput | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   
-  const [isWorkerReady, setIsWorkerReady] = useState(false);
-  const workerRef = useRef<Tesseract.Worker | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-
-  // Initialize the Tesseract worker on component mount
-  useEffect(() => {
-    const initializeWorker = async () => {
-      if (typeof Tesseract === 'undefined') {
-        console.error('Tesseract.js script not loaded');
-        return;
-      }
-      try {
-        const worker = await Tesseract.createWorker({
-          logger: (m: any) => {
-             if (m.status === 'recognizing text') {
-               setOcrStatus('Recognizing text');
-               setOcrProgress(Math.floor(m.progress * 100));
-             }
-          },
-        });
-        await worker.loadLanguage('eng');
-        await worker.initialize('eng');
-        workerRef.current = worker;
-        setIsWorkerReady(true);
-      } catch (err) {
-        console.error("Failed to initialize Tesseract worker", err);
-      }
-    };
-
-    initializeWorker();
-
-    // Cleanup worker on component unmount
-    return () => {
-      workerRef.current?.terminate();
-      workerRef.current = null;
-      setIsWorkerReady(false);
-    };
-  }, []);
 
   const resetState = () => {
     setImageDataUri(null);
@@ -86,6 +49,7 @@ export default function ScanMedicinePage() {
     reader.onload = (e) => {
       const dataUri = e.target?.result as string;
       setImageDataUri(dataUri);
+      processImage(dataUri); // Immediately start processing
     };
     reader.readAsDataURL(file);
   };
@@ -97,27 +61,36 @@ export default function ScanMedicinePage() {
     }
   };
 
-  const processImage = async () => {
-    if (!imageDataUri) {
-      toast({ variant: 'destructive', title: 'No Image', description: 'Please upload or capture an image first.' });
+  const processImage = async (dataUri: string) => {
+    if (typeof Tesseract === 'undefined') {
+      toast({ variant: 'destructive', title: 'OCR Not Loaded', description: 'Tesseract.js script not found. Please refresh the page.' });
       return;
     }
-    if (!workerRef.current) {
-      toast({ variant: 'destructive', title: 'OCR Not Ready', description: 'The text recognition engine is still loading.' });
-      return;
-    }
-
+    
     setIsProcessing(true);
-    setOcrStatus('Starting OCR...');
+    setOcrStatus('Starting...');
     setOcrProgress(0);
+    setVerificationStatus(null);
+    setAiResult(null);
 
     try {
-      const { data: { text } } = await workerRef.current.recognize(imageDataUri);
+      const { data: { text } } = await Tesseract.recognize(
+        dataUri,
+        'eng',
+        {
+          logger: (m: any) => {
+            if (m.status === 'recognizing text') {
+              setOcrStatus('Recognizing text...');
+              setOcrProgress(Math.floor(m.progress * 100));
+            } else {
+              setOcrStatus(m.status);
+            }
+          }
+        }
+      );
       
       setExtractedText(text);
-      setOcrStatus('OCR Complete');
-      setOcrProgress(100);
-      verifyMedicine(text);
+      verifyMedicine(text, dataUri);
 
     } catch (error) {
       console.error(error);
@@ -126,31 +99,30 @@ export default function ScanMedicinePage() {
     }
   };
 
-  const verifyMedicine = (text: string) => {
+  const verifyMedicine = (text: string, dataUri: string) => {
     const lowercasedText = text.toLowerCase();
     const medicineName = mockMedicineData.name.toLowerCase();
     
     if (lowercasedText.includes(medicineName)) {
       setVerificationStatus('verified');
-      fetchAiExplanation();
+      fetchAiExplanation(dataUri);
     } else {
       setVerificationStatus('unknown');
-      setIsProcessing(false);
+      setIsProcessing(false); // Stop processing if not verified
     }
   };
 
-  const fetchAiExplanation = async () => {
-    if (!imageDataUri) return;
+  const fetchAiExplanation = async (dataUri: string) => {
     setIsAiLoading(true);
     try {
-      const result = await analyzeMedicinePackage({ imageDataUri: imageDataUri });
+      const result = await analyzeMedicinePackage({ imageDataUri: dataUri });
       setAiResult(result);
     } catch (error) {
       console.error(error);
       toast({ variant: 'destructive', title: 'AI Analysis Failed', description: 'Could not get an explanation.' });
     } finally {
       setIsAiLoading(false);
-      setIsProcessing(false);
+      setIsProcessing(false); // Final processing stop
     }
   };
 
@@ -163,15 +135,15 @@ export default function ScanMedicinePage() {
             <CardDescription>Upload or capture an image of the medicine package.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
+             <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept="image/*" />
             <Button size="lg" onClick={() => fileInputRef.current?.click()}>
               <Upload className="mr-2 h-5 w-5" />
               Upload Image
             </Button>
-            <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept="image/*" />
-            <Button size="lg" variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <input type="file" id="camera-input" onChange={handleFileSelect} className="hidden" accept="image/*" capture="environment" />
+            <Button size="lg" variant="outline" onClick={() => document.getElementById('camera-input')?.click()}>
               <Camera className="mr-2 h-5 w-5" />
                Use Camera
-               <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept="image/*" capture="environment" />
             </Button>
           </CardContent>
         </Card>
@@ -194,52 +166,42 @@ export default function ScanMedicinePage() {
           <CardContent>
             <Image src={imageDataUri} alt="Medicine Package" width={500} height={500} className="rounded-lg w-full h-auto" />
           </CardContent>
-          <CardFooter>
-            <Button className="w-full" onClick={processImage} disabled={isProcessing || !isWorkerReady}>
-              {isProcessing ? <Loader2 className="animate-spin mr-2"/> : !isWorkerReady ? <Loader2 className="animate-spin mr-2"/> : <ShieldCheck className="mr-2"/>}
-              {isWorkerReady ? 'Check Medicine' : 'Preparing Scanner...'}
-            </Button>
-          </CardFooter>
         </Card>
 
         <div className="space-y-6">
-          {isProcessing && !verificationStatus && (
+          {(isProcessing || verificationStatus) && (
             <Card>
               <CardHeader>
-                <CardTitle>Processing...</CardTitle>
+                <CardTitle>{isProcessing ? "Processing..." : "Verification Result"}</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <Progress value={ocrProgress} />
-                <p className="text-sm text-muted-foreground text-center">{ocrStatus}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {verificationStatus && (
-            <>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Verification Result</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {verificationStatus === 'verified' && (
-                    <Alert variant="default" className="bg-green-100 dark:bg-green-900/50 border-green-500">
-                      <ShieldCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
-                      <AlertTitle className="text-green-800 dark:text-green-300">Verified</AlertTitle>
-                      <AlertDescription className="text-green-700 dark:text-green-400">
-                        Match found for "{mockMedicineData.name}".
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  {verificationStatus === 'unknown' && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-5 w-5" />
-                      <AlertTitle>Unknown Medicine</AlertTitle>
-                      <AlertDescription>
-                        Could not verify the medicine from the image.
-                      </AlertDescription>
-                    </Alert>
-                  )}
+              <CardContent className="space-y-4">
+                {isProcessing && !verificationStatus && (
+                  <div className="space-y-2">
+                    <Progress value={ocrProgress} />
+                    <p className="text-sm text-muted-foreground text-center">{ocrStatus}</p>
+                  </div>
+                )}
+                
+                {verificationStatus === 'verified' && (
+                  <Alert variant="default" className="bg-green-100 dark:bg-green-900/50 border-green-500">
+                    <ShieldCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    <AlertTitle className="text-green-800 dark:text-green-300">Verified</AlertTitle>
+                    <AlertDescription className="text-green-700 dark:text-green-400">
+                      Match found for "{mockMedicineData.name}".
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {verificationStatus === 'unknown' && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-5 w-5" />
+                    <AlertTitle>Unknown Medicine</AlertTitle>
+                    <AlertDescription>
+                      Could not verify the medicine from the image.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {verificationStatus && (
                   <Alert variant="default" className="mt-4 border-amber-500 bg-amber-50 dark:bg-amber-950">
                     <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                     <AlertTitle className="text-amber-800 dark:text-amber-300">Disclaimer</AlertTitle>
@@ -247,18 +209,9 @@ export default function ScanMedicinePage() {
                       This is for informational purposes only and is not a medical diagnosis. Consult a professional.
                     </AlertDescription>
                   </Alert>
-                </CardContent>
-              </Card>
-
-              {extractedText && (
-                <Card>
-                    <CardHeader><CardTitle>Extracted Text</CardTitle></CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted p-3 rounded-md">{extractedText}</p>
-                    </CardContent>
-                </Card>
-              )}
-            </>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {isAiLoading && (
@@ -293,6 +246,15 @@ export default function ScanMedicinePage() {
                     </div>
                 </CardContent>
              </Card>
+          )}
+
+          {extractedText && !isProcessing && (
+              <Card>
+                  <CardHeader><CardTitle>Extracted Text</CardTitle></CardHeader>
+                  <CardContent>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted p-3 rounded-md">{extractedText}</p>
+                  </CardContent>
+              </Card>
           )}
         </div>
       </div>
