@@ -18,20 +18,41 @@ type VerificationStatus = 'verified' | 'caution' | 'unknown';
 export default function ScanMedicinePage() {
   const [imageDataUri, setImageDataUri] = useState<string | null>(null);
   const [extractedText, setExtractedText] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false); // For OCR + AI
   const [ocrProgress, setOcrProgress] = useState(0);
   const [ocrStatus, setOcrStatus] = useState('');
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
   const [aiResult, setAiResult] = useState<AnalyzeMedicinePackageOutput | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
-
+  
+  const [isWorkerReady, setIsWorkerReady] = useState(false);
+  const workerRef = useRef<Tesseract.Worker | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  // Initialize the Tesseract worker on component mount
   useEffect(() => {
-    // Cleanup state if component unmounts
+    const initializeWorker = async () => {
+      const worker = await Tesseract.createWorker({
+        logger: (m: any) => {
+           if (m.status === 'recognizing text') {
+             setOcrStatus(m.status);
+             setOcrProgress(Math.floor(m.progress * 100));
+           }
+        },
+      });
+      await worker.loadLanguage('eng');
+      await worker.initialize('eng');
+      workerRef.current = worker;
+      setIsWorkerReady(true);
+    };
+
+    initializeWorker();
+
+    // Cleanup worker on component unmount
     return () => {
-      resetState();
+      workerRef.current?.terminate();
+      workerRef.current = null;
     };
   }, []);
 
@@ -72,25 +93,18 @@ export default function ScanMedicinePage() {
       toast({ variant: 'destructive', title: 'No Image', description: 'Please upload or capture an image first.' });
       return;
     }
+    if (!workerRef.current) {
+      toast({ variant: 'destructive', title: 'OCR Not Ready', description: 'The text recognition engine is still loading.' });
+      return;
+    }
 
     setIsProcessing(true);
-    setOcrStatus('Initializing OCR...');
+    setOcrStatus('Recognizing text...');
     setOcrProgress(0);
 
     try {
-      const worker = await Tesseract.createWorker({
-        logger: (m: any) => {
-          setOcrStatus(m.status);
-          if (m.status === 'recognizing text') {
-            setOcrProgress(Math.floor(m.progress * 100));
-          }
-        },
-      });
-      await worker.loadLanguage('eng');
-      await worker.initialize('eng');
-      const { data: { text } } = await worker.recognize(imageDataUri);
-      await worker.terminate();
-
+      const { data: { text } } = await workerRef.current.recognize(imageDataUri);
+      
       setExtractedText(text);
       setOcrStatus('OCR Complete');
       setOcrProgress(100);
@@ -172,15 +186,15 @@ export default function ScanMedicinePage() {
             <Image src={imageDataUri} alt="Medicine Package" width={500} height={500} className="rounded-lg w-full h-auto" />
           </CardContent>
           <CardFooter>
-            <Button className="w-full" onClick={processImage} disabled={isProcessing}>
+            <Button className="w-full" onClick={processImage} disabled={isProcessing || !isWorkerReady}>
               {isProcessing ? <Loader2 className="animate-spin mr-2"/> : <ShieldCheck className="mr-2"/>}
-              Check Medicine
+              {isWorkerReady ? 'Check Medicine' : 'Preparing Scanner...'}
             </Button>
           </CardFooter>
         </Card>
 
         <div className="space-y-6">
-          {isProcessing && (
+          {isProcessing && !verificationStatus && (
             <Card>
               <CardHeader>
                 <CardTitle>Processing...</CardTitle>
