@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/hooks/use-language';
 import { useAuth } from '@/contexts/auth-provider';
 import { useFirestore } from '@/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, File, X, User } from 'lucide-react';
@@ -113,34 +113,35 @@ export default function MyQrInfoPage() {
   }, []);
 
   useEffect(() => {
-    async function fetchQrInfo() {
-      if (!user?.uid || !db) {
-          setIsLoading(false);
-          return;
-      };
+    if (!user?.uid || !db) {
+        setIsLoading(false);
+        return;
+    };
 
-      setIsLoading(true);
-      try {
-        const docRef = doc(db, 'qr-info', user.uid);
-        const docSnap = await getDoc(docRef);
+    setIsLoading(true);
+    const docRef = doc(db, 'qr-info', user.uid);
+    
+    const unsubscribe = onSnapshot(docRef, 
+      (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data() as QrInfo;
           form.reset(data);
           generateQrData(data);
         }
-      } catch (error) {
+        setIsLoading(false);
+      },
+      (error) => {
         console.error('Error fetching QR info:', error);
         if (error instanceof Error && error.message.includes('offline')) {
             toast({ title: getTranslation(translations.errorTitle), description: "You appear to be offline. Data could not be loaded.", variant: 'destructive' });
         } else {
             toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.loadingError), variant: 'destructive' });
         }
-      } finally {
         setIsLoading(false);
       }
-    }
+    );
     
-    fetchQrInfo();
+    return () => unsubscribe();
   }, [user, db, toast, getTranslation, translations, generateQrData, form]);
 
 
@@ -346,5 +347,3 @@ export default function MyQrInfoPage() {
     </div>
   );
 }
-
-    
