@@ -49,6 +49,16 @@ export default function MyQrInfoPage() {
     if (!userId || !db) return null;
     return doc(db, 'users', userId, 'qrInfo', 'data');
   }, [userId, db]);
+  
+  const generateQrData = (data: QrInfo) => {
+    const dataString = `
+Blood Type: ${data.bloodType}
+Allergies: ${data.allergies || 'None'}
+Prescriptions: ${data.prescriptions || 'None'}
+Emergency Contact: ${data.emergencyContact || 'None'}
+    `.trim();
+    setQrData(dataString);
+  };
 
   useEffect(() => {
     async function fetchQrInfo() {
@@ -70,18 +80,11 @@ export default function MyQrInfoPage() {
       }
       setIsLoading(false);
     }
-    fetchQrInfo();
-  }, [userId, form, docRef, toast]);
+    if (userId && db) {
+        fetchQrInfo();
+    }
+  }, [userId, db, docRef, form, toast]);
 
-  const generateQrData = (data: QrInfo) => {
-    const dataString = `
-Blood Type: ${data.bloodType}
-Allergies: ${data.allergies || 'None'}
-Prescriptions: ${data.prescriptions || 'None'}
-Emergency Contact: ${data.emergencyContact || 'None'}
-    `.trim();
-    setQrData(dataString);
-  };
 
   async function onSubmit(values: QrInfo) {
     if (!docRef) {
@@ -169,7 +172,7 @@ Emergency Contact: ${data.emergencyContact || 'None'}
                 <CardTitle className="font-headline">{getTranslation(translations.qrTitle)}</CardTitle>
               </CardHeader>
               <CardContent className="flex justify-center">
-                <QRCode value={qrData} size={256} />
+                <QRCode value={qrData} size={256} bgColor="var(--card)" fgColor="var(--card-foreground)" />
               </CardContent>
             </Card>
           )}
