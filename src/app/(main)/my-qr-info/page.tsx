@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useEffect, useState, useMemo } from 'react';
 import QRCode from 'qrcode.react';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -15,13 +16,23 @@ import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, File, X, Upload } from 'lucide-react';
+import { firebaseConfig } from '@/firebase/config';
+import { initializeApp } from 'firebase/app';
+import { getStorage } from 'firebase/storage';
+
+// Initialize Firebase Storage
+const app = initializeApp(firebaseConfig);
+const storage = getStorage(app);
+
 
 const formSchema = z.object({
   bloodType: z.string().min(2, 'Required').max(5, 'Invalid'),
   allergies: z.string().optional(),
   prescriptions: z.string().optional(),
   emergencyContact: z.string().min(10, 'Enter a valid phone number').optional(),
+  pdfUrl: z.string().url().optional(),
+  pdfFileName: z.string().optional(),
 });
 
 type QrInfo = z.infer<typeof formSchema>;
@@ -34,6 +45,7 @@ export default function MyQrInfoPage() {
   const [qrData, setQrData] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
 
   const form = useForm<QrInfo>({
     resolver: zodResolver(formSchema),
@@ -42,21 +54,25 @@ export default function MyQrInfoPage() {
       allergies: '',
       prescriptions: '',
       emergencyContact: '',
+      pdfUrl: '',
+      pdfFileName: ''
     },
   });
 
   const docRef = useMemo(() => {
     if (!userId || !db) return null;
-    return doc(db, 'users', userId, 'qrInfo', 'data');
+    return doc(db, 'users', userId); // Use a simpler path
   }, [userId, db]);
   
   const generateQrData = (data: QrInfo) => {
-    const dataString = `
-Blood Type: ${data.bloodType}
-Allergies: ${data.allergies || 'None'}
-Prescriptions: ${data.prescriptions || 'None'}
-Emergency Contact: ${data.emergencyContact || 'None'}
-    `.trim();
+    const dataForQr = {
+        bloodType: data.bloodType,
+        allergies: data.allergies || 'None',
+        prescriptions: data.prescriptions || 'None',
+        emergencyContact: data.emergencyContact || 'None',
+        pdfUrl: data.pdfUrl || 'None',
+    }
+    const dataString = JSON.stringify(dataForQr, null, 2);
     setQrData(dataString);
   };
 
@@ -87,14 +103,46 @@ Emergency Contact: ${data.emergencyContact || 'None'}
 
 
   async function onSubmit(values: QrInfo) {
-    if (!docRef) {
+    if (!docRef || !userId) {
       toast({ title: 'Error', description: 'You must be logged in to save data.', variant: 'destructive' });
       return;
     }
     setIsSubmitting(true);
+    let uploadedPdfUrl = values.pdfUrl;
+    let uploadedPdfName = values.pdfFileName;
+
     try {
-      await setDoc(docRef, values);
-      generateQrData(values);
+      // Handle PDF upload
+      if (fileToUpload) {
+        // If there's an old PDF, delete it first
+        if (values.pdfUrl) {
+            try {
+                const oldFileRef = ref(storage, values.pdfUrl);
+                await deleteObject(oldFileRef);
+            } catch (deleteError: any) {
+                // Ignore if file not found, as it might have been deleted manually
+                if (deleteError.code !== 'storage/object-not-found') {
+                    console.warn("Could not delete old PDF:", deleteError);
+                }
+            }
+        }
+
+        const fileRef = ref(storage, `user-qr-pdfs/${userId}/${fileToUpload.name}`);
+        const snapshot = await uploadBytes(fileRef, fileToUpload);
+        uploadedPdfUrl = await getDownloadURL(snapshot.ref);
+        uploadedPdfName = fileToUpload.name;
+      }
+
+      const finalValues = {
+        ...values,
+        pdfUrl: uploadedPdfUrl,
+        pdfFileName: uploadedPdfName,
+      };
+
+      await setDoc(docRef, finalValues, { merge: true }); // Use merge to not overwrite other user data
+      generateQrData(finalValues);
+      form.reset(finalValues); // Update form state with new URL
+      setFileToUpload(null);
       toast({ title: 'Success', description: 'Your information has been saved.' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to save information.', variant: 'destructive' });
@@ -103,9 +151,46 @@ Emergency Contact: ${data.emergencyContact || 'None'}
     setIsSubmitting(false);
   }
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === 'application/pdf') {
+      setFileToUpload(file);
+      // We don't update the form here directly, only on submit
+    } else {
+      toast({ title: 'Invalid File', description: 'Please upload a PDF file.', variant: 'destructive' });
+    }
+  };
+  
+  const removePdf = async () => {
+    if (!userId) return;
+    setIsSubmitting(true);
+    const currentPdfUrl = form.getValues('pdfUrl');
+    if (currentPdfUrl) {
+        try {
+            const fileRef = ref(storage, currentPdfUrl);
+            await deleteObject(fileRef);
+        } catch (error: any) {
+            if (error.code !== 'storage/object-not-found') {
+                 toast({ title: 'Error', description: 'Could not remove the PDF. Please try again.', variant: 'destructive' });
+                 console.error("Error removing PDF:", error);
+                 setIsSubmitting(false);
+                 return;
+            }
+        }
+    }
+    const updatedValues = {
+        ...form.getValues(),
+        pdfUrl: '',
+        pdfFileName: ''
+    };
+    await onSubmit(updatedValues);
+    setIsSubmitting(false);
+  }
+
+
   const translations = {
     title: { en: 'My QR Info', am: 'የእኔ QR መረጃ', om: 'Odeeffannoo QR Koo' },
-    description: { en: 'Keep your emergency info up to date.', am: 'የድንገተኛ ጊዜ መረጃዎን ወቅታዊ ያድርጉ።', om: 'Odeeffannoo yeroo hatattamaa kee haaromsi.' },
+    description: { en: 'Keep your emergency info up to date. This QR code is your digital medical ID.', am: 'የድንገተኛ ጊዜ መረጃዎን ወቅታዊ ያድርጉ። ይህ የQR ኮድ የእርስዎ ዲጂታል የህክምና መታወቂያ ነው።', om: 'Odeeffannoo yeroo hatattamaa kee haaromsi. Koodiin QR kun waraqaa eenyummaa yaalaa dijitaalaa keeti.' },
     bloodType: { en: 'Blood Type', am: 'የደም አይነት', om: 'Gosa Dhiigaa' },
     bloodTypePlaceholder: { en: 'e.g., A+', am: 'ለምሳሌ፣ A+', om: 'Fkn, A+' },
     allergies: { en: 'Allergies', am: 'አለርጂዎች', om: 'Aleerjiiwwan' },
@@ -116,6 +201,10 @@ Emergency Contact: ${data.emergencyContact || 'None'}
     emergencyContactPlaceholder: { en: 'e.g., +1234567890', am: 'ለምሳሌ፣ +1234567890', om: 'Fkn, +1234567890' },
     saveBtn: { en: 'Save Information', am: 'መረጃ አስቀምጥ', om: 'Odeeffannoo Olkaa\'i' },
     qrTitle: { en: 'Your Emergency QR Code', am: 'የእርስዎ የድንገተኛ QR ኮድ', om: 'Koodii QR Ariifachiisaa Kee' },
+    uploadPdf: { en: 'Upload Medical PDF', am: 'የህክምና PDF ስቀል', om: 'PDF Yaalaa Ol-Guuti' },
+    uploadPdfDesc: { en: 'Upload a PDF with more medical details (optional).', am: 'ተጨማሪ የህክምና ዝርዝሮች ያለው PDF ይስቀሉ (አማራጭ)።', om: 'PDF tarreeffama yaalaa dabalataa qabu ol guuti (filannoo).' },
+    uploadedFile: { en: 'Uploaded File:', am: 'የተሰቀለ ፋይል፡', om: 'Faayili Ol-Guutame:'},
+    removeFile: {en: 'Remove', am: 'አስወግድ', om: 'Haqi'}
   };
 
   return (
@@ -130,7 +219,7 @@ Emergency Contact: ${data.emergencyContact || 'None'}
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </div>
       ) : (
-        <>
+        <div className="grid md:grid-cols-2 gap-8">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               <FormField control={form.control} name="bloodType" render={({ field }) => (
@@ -159,6 +248,32 @@ Emergency Contact: ${data.emergencyContact || 'None'}
                     <FormMessage />
                   </FormItem>
                 )} />
+
+              <FormItem>
+                <FormLabel>{getTranslation(translations.uploadPdf)}</FormLabel>
+                <FormDescription>{getTranslation(translations.uploadPdfDesc)}</FormDescription>
+                <FormControl>
+                    <Input type="file" accept="application/pdf" onChange={handleFileChange} className="pt-2"/>
+                </FormControl>
+                 {fileToUpload && (
+                    <div className="text-sm text-muted-foreground flex items-center gap-2 pt-2">
+                        <File className="h-4 w-4"/> <span>New: {fileToUpload.name}</span>
+                    </div>
+                 )}
+                 {!fileToUpload && form.getValues('pdfFileName') && (
+                    <div className="text-sm font-medium flex items-center justify-between pt-2">
+                        <div className='flex items-center gap-2'>
+                            <File className="h-4 w-4 text-primary"/> 
+                            <a href={form.getValues('pdfUrl')} target="_blank" rel="noopener noreferrer" className='text-primary hover:underline'>{form.getValues('pdfFileName')}</a>
+                        </div>
+                        <Button type="button" variant="ghost" size="sm" onClick={removePdf} disabled={isSubmitting}>
+                            <X className="h-4 w-4 mr-2"/>
+                            {getTranslation(translations.removeFile)}
+                        </Button>
+                    </div>
+                 )}
+              </FormItem>
+
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {getTranslation(translations.saveBtn)}
@@ -166,18 +281,26 @@ Emergency Contact: ${data.emergencyContact || 'None'}
             </form>
           </Form>
 
-          {qrData && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-headline">{getTranslation(translations.qrTitle)}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                <QRCode value={qrData} size={256} bgColor="var(--card)" fgColor="var(--card-foreground)" />
-              </CardContent>
-            </Card>
-          )}
-        </>
+          <div className="space-y-6">
+              <Card>
+                  <CardHeader>
+                      <CardTitle className="font-headline">{getTranslation(translations.qrTitle)}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex justify-center items-center">
+                    {qrData ? (
+                        <QRCode value={qrData} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} bgColor="var(--card)" fgColor="var(--card-foreground)" />
+                    ) : (
+                        <div className="w-full aspect-square bg-muted rounded-md flex items-center justify-center text-muted-foreground text-center p-4">
+                            <p>Your QR Code will appear here once you save your information.</p>
+                        </div>
+                    )}
+                  </CardContent>
+              </Card>
+          </div>
+        </div>
       )}
     </div>
   );
 }
+
+    
