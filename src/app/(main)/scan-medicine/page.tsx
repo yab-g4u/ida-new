@@ -68,7 +68,7 @@ export default function ScanMedicinePage() {
     }
     
     setIsProcessing(true);
-    setOcrStatus('Starting...');
+    setOcrStatus('Starting OCR...');
     setOcrProgress(0);
     setVerificationStatus(null);
     setAiResult(null);
@@ -89,8 +89,9 @@ export default function ScanMedicinePage() {
         }
       );
       
-      setExtractedText(text);
-      verifyMedicine(text, dataUri);
+      const cleanedText = text.replace(/(\r\n|\n|\r)/gm, " ").trim();
+      setExtractedText(cleanedText);
+      verifyMedicine(cleanedText, dataUri);
 
     } catch (error) {
       console.error(error);
@@ -101,22 +102,26 @@ export default function ScanMedicinePage() {
 
   const verifyMedicine = (text: string, dataUri: string) => {
     const lowercasedText = text.toLowerCase();
-    const medicineName = mockMedicineData.name.toLowerCase();
     
-    if (lowercasedText.includes(medicineName)) {
+    const matchedMedicine = mockMedicineData.find(med => 
+        med.keywords.some(keyword => lowercasedText.includes(keyword.toLowerCase()))
+    );
+
+    if (matchedMedicine) {
       setVerificationStatus('verified');
-      fetchAiExplanation(dataUri);
+      fetchAiExplanation(dataUri, matchedMedicine.name);
     } else {
       setVerificationStatus('unknown');
       setIsProcessing(false); // Stop processing if not verified
     }
   };
 
-  const fetchAiExplanation = async (dataUri: string) => {
+  const fetchAiExplanation = async (dataUri: string, medicineName: string) => {
     setIsAiLoading(true);
     try {
       const result = await analyzeMedicinePackage({ imageDataUri: dataUri });
-      setAiResult(result);
+       // Use the matched name, but the AI result for other fields
+      setAiResult({ ...result, name: medicineName });
     } catch (error) {
       console.error(error);
       toast({ variant: 'destructive', title: 'AI Analysis Failed', description: 'Could not get an explanation.' });
@@ -182,12 +187,12 @@ export default function ScanMedicinePage() {
                   </div>
                 )}
                 
-                {verificationStatus === 'verified' && (
+                {verificationStatus === 'verified' && aiResult && (
                   <Alert variant="default" className="bg-green-100 dark:bg-green-900/50 border-green-500">
                     <ShieldCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
                     <AlertTitle className="text-green-800 dark:text-green-300">Verified</AlertTitle>
                     <AlertDescription className="text-green-700 dark:text-green-400">
-                      Match found for "{mockMedicineData.name}".
+                      Match found for "{aiResult.name}".
                     </AlertDescription>
                   </Alert>
                 )}
