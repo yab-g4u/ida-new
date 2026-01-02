@@ -17,7 +17,7 @@ export const mockMedicineData = {
     },
     sideEffects: {
         en: 'Nausea, vomiting, diarrhea, rash.',
-        am: 'ማቅለሽለሽ፣ ማስመለስ፣ ተቅማጥ፣ ሽፍታ።',
+        am: 'ማቅለшለሽ፣ ማስመለስ፣ ተቅማጥ፣ ሽፍታ።',
         om: 'Garaa naqsuu, diddiga, garaa kaasaa, fincaan.',
     },
     warnings: {
@@ -26,4 +26,15 @@ export const mockMedicineData = {
         om: 'Aleerjii peenisiliinii, dhukkuba kalee.',
     }
   };
+
+  export const mockPharmacies = [
+    { id: 1, name: 'Bole Pharmacy', area: 'Bole', coordinates: [9.005, 38.791] as [number, number], distance: '4.1', hours: '10PM', phone: '+251 11 456 7890' },
+    { id: 2, name: 'Medhanealem Pharmacy', area: 'Bole', coordinates: [9.0085, 38.7901] as [number, number], distance: '3.8', hours: '9PM', phone: '+251 11 661 1234' },
+    { id: 4, name: 'CityMed Pharmacy', area: 'Kirkos', coordinates: [8.9806, 38.7578] as [number, number], distance: '3.4', hours: '24 Hours', phone: '+251 11 345 6789' },
+    { id: 6, name: 'Arada Pharmacy', area: 'Arada', coordinates: [9.0355, 38.7525] as [number, number], distance: '0.8', hours: '8PM', phone: '+251 11 567 8901' },
+    { id: 8, name: 'Lideta Pharmacy', area: 'Lideta', coordinates: [9.015, 38.74] as [number, number], distance: '1.5', hours: '24 Hours', phone: '+251 11 275 4455' },
+    { id: 11, name: 'Megenagna Pharmacy', area: 'Yeka', coordinates: [9.018, 38.805] as [number, number], distance: '4.8', hours: '24 Hours', phone: '+251 11 660 9988' },
+  ];
+  
+  export type Pharmacy = typeof mockPharmacies[0];
   

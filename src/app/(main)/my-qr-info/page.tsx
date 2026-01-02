@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import QRCode from 'qrcode.react';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
@@ -20,7 +20,7 @@ import { Loader2, File, X } from 'lucide-react';
 import { getStorage } from 'firebase/storage';
 
 const formSchema = z.object({
-  bloodType: z.string().min(2, 'Required').max(5, 'Invalid'),
+  bloodType: z.string().min(1, 'Required').max(5, 'Invalid'),
   allergies: z.string().optional(),
   prescriptions: z.string().optional(),
   emergencyContact: z.string().min(10, 'Enter a valid phone number').optional(),
@@ -53,7 +53,7 @@ export default function MyQrInfoPage() {
       pdfFileName: ''
     },
   });
-
+  
   const translations = useMemo(() => ({
     title: { en: 'My QR Info', am: 'የእኔ QR መረጃ', om: 'Odeeffannoo QR Koo' },
     description: { en: 'Keep your emergency info up to date. This QR code is your digital medical ID.', am: 'የድንገተኛ ጊዜ መረጃዎን ወቅታዊ ያድርጉ። ይህ የQR ኮድ የእርስዎ ዲጂታል የህክምና መታወቂያ ነው።', om: 'Odeeffannoo yeroo hatattamaa kee haaromsi. Koodiin QR kun waraqaa eenyummaa yaalaa dijitaalaa keeti.' },
@@ -84,28 +84,29 @@ export default function MyQrInfoPage() {
     invalidFileTitle: {en: "Invalid File", am: "የማይሰራ ፋይል", om: "Faayilii Sirrii Hin Taane"},
   }), [getTranslation]);
   
-  const generateQrData = (data: Partial<QrInfo>) => {
+  const generateQrData = useCallback((data: Partial<QrInfo>) => {
+    if (!data.bloodType) {
+      setQrData('');
+      return;
+    }
     const dataForQr = {
         bloodType: data.bloodType || 'N/A',
         allergies: data.allergies || 'None',
         prescriptions: data.prescriptions || 'None',
         emergencyContact: data.emergencyContact || 'None',
         pdfUrl: data.pdfUrl || 'None',
-    }
+    };
     const dataString = JSON.stringify(dataForQr, null, 2);
     setQrData(dataString);
-  };
+  }, []);
 
   useEffect(() => {
     async function fetchQrInfo() {
-      if (!user?.uid || !db) {
-        setIsLoading(false);
-        return;
-      };
+      if (!user?.uid || !db) return;
 
       setIsLoading(true);
       try {
-        const docRef = doc(db, 'users', user.uid);
+        const docRef = doc(db, 'qr-info', user.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data() as QrInfo;
@@ -114,19 +115,22 @@ export default function MyQrInfoPage() {
         }
       } catch (error) {
         console.error('Error fetching QR info:', error);
-        toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.loadingError), variant: 'destructive' });
+        if (error instanceof Error && error.message.includes('offline')) {
+            // Silently fail on offline error during initial load
+        } else {
+            toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.loadingError), variant: 'destructive' });
+        }
       } finally {
         setIsLoading(false);
       }
     }
     
-    // Only fetch when user and db are available.
     if (user?.uid && db) {
         fetchQrInfo();
     } else {
         setIsLoading(false);
     }
-  }, [user, db, form, toast, getTranslation, translations]);
+  }, [user, db, form, toast, getTranslation, translations, generateQrData]);
 
 
   async function onSubmit(values: QrInfo) {
@@ -135,15 +139,13 @@ export default function MyQrInfoPage() {
       return;
     }
     setIsSubmitting(true);
-    const docRef = doc(db, 'users', user.uid);
+    const docRef = doc(db, 'qr-info', user.uid);
 
     try {
       let uploadedPdfUrl = values.pdfUrl;
       let uploadedPdfName = values.pdfFileName;
 
-      // Handle PDF upload
       if (fileToUpload) {
-        // If there's an old PDF, delete it first
         if (values.pdfUrl) {
             try {
                 const oldFileRef = ref(storage, values.pdfUrl);
@@ -184,7 +186,7 @@ export default function MyQrInfoPage() {
     const file = event.target.files?.[0];
     if (file && file.type === 'application/pdf') {
       setFileToUpload(file);
-    } else {
+    } else if (file) {
       toast({ title: getTranslation(translations.invalidFileTitle), description: getTranslation(translations.invalidFile), variant: 'destructive' });
     }
   };
@@ -207,21 +209,21 @@ export default function MyQrInfoPage() {
             }
         }
     }
-    // Create an object with only the fields we want to change
+
     const updatedValues = {
         ...form.getValues(),
         pdfUrl: '',
         pdfFileName: ''
     };
-    await onSubmit(updatedValues); // Resubmit form with cleared PDF fields
-    setIsSubmitting(false); // onSubmit will set this, but we do it here just in case.
+    await onSubmit(updatedValues);
+    setIsSubmitting(false);
   }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
       <header>
-        <h1 className="font-headline text-4xl text-foreground">{getTranslation(translations.title)}</h1>
-        <p className="text-muted-foreground">{getTranslation(translations.description)}</p>
+        <h1 className="font-headline text-3xl md:text-4xl text-foreground">{getTranslation(translations.title)}</h1>
+        <p className="text-muted-foreground text-sm md:text-base">{getTranslation(translations.description)}</p>
       </header>
 
       {isLoading ? (
@@ -231,7 +233,7 @@ export default function MyQrInfoPage() {
       ) : (
         <div className="grid md:grid-cols-2 gap-8">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField control={form.control} name="bloodType" render={({ field }) => (
                   <FormItem>
                     <FormLabel>{getTranslation(translations.bloodType)}</FormLabel>
@@ -263,7 +265,7 @@ export default function MyQrInfoPage() {
                 <FormLabel>{getTranslation(translations.uploadPdf)}</FormLabel>
                 <FormDescription>{getTranslation(translations.uploadPdfDesc)}</FormDescription>
                 <FormControl>
-                    <Input type="file" accept="application/pdf" onChange={handleFileChange} className="pt-2"/>
+                    <Input type="file" accept="application/pdf" onChange={handleFileChange} className="pt-2 text-sm"/>
                 </FormControl>
                  {fileToUpload && (
                     <div className="text-sm text-muted-foreground flex items-center gap-2 pt-2">
@@ -277,7 +279,7 @@ export default function MyQrInfoPage() {
                             <a href={form.getValues('pdfUrl')} target="_blank" rel="noopener noreferrer" className='text-primary hover:underline'>{form.getValues('pdfFileName')}</a>
                         </div>
                         <Button type="button" variant="ghost" size="sm" onClick={removePdf} disabled={isSubmitting}>
-                            <X className="h-4 w-4 mr-2"/>
+                            <X className="h-4 w-4 mr-1"/>
                             {getTranslation(translations.removeFile)}
                         </Button>
                     </div>
@@ -296,9 +298,11 @@ export default function MyQrInfoPage() {
                   <CardHeader>
                       <CardTitle className="font-headline">{getTranslation(translations.qrTitle)}</CardTitle>
                   </CardHeader>
-                  <CardContent className="flex justify-center items-center">
+                  <CardContent className="flex justify-center items-center p-4">
                     {qrData ? (
-                        <QRCode value={qrData} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} bgColor="var(--card)" fgColor="var(--card-foreground)" />
+                        <div className='bg-white p-4 rounded-lg'>
+                           <QRCode value={qrData} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} bgColor="white" fgColor="black" />
+                        </div>
                     ) : (
                         <div className="w-full aspect-square bg-muted rounded-md flex items-center justify-center text-muted-foreground text-center p-4">
                             <p>{getTranslation(translations.noQrCode)}</p>
@@ -312,5 +316,3 @@ export default function MyQrInfoPage() {
     </div>
   );
 }
-
-    

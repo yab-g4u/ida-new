@@ -5,8 +5,9 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useMemo } from 'react';
 import { useLanguage } from '@/hooks/use-language';
+import { mockPharmacies, type Pharmacy } from '@/lib/data';
 
-// Custom icon for markers
+// Custom icon for markers to fix default icon issues
 const markerIcon = new L.Icon({
   iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
@@ -17,38 +18,19 @@ const markerIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
+export { type Pharmacy };
 
-const mockPharmacies = [
-  { id: 1, name: 'Bole Pharmacy', area: 'Bole', coordinates: [9.005, 38.791] as [number, number], distance: '4.1', hours: '10PM', phone: '+251 11 456 7890' },
-  { id: 2, name: 'Medhanealem Pharmacy', area: 'Bole', coordinates: [9.0085, 38.7901] as [number, number], distance: '3.8', hours: '9PM', phone: '+251 11 661 1234' },
-  { id: 4, name: 'CityMed Pharmacy', area: 'Kirkos', coordinates: [8.9806, 38.7578] as [number, number], distance: '3.4', hours: '24 Hours', phone: '+251 11 345 6789' },
-  { id: 6, name: 'Arada Pharmacy', area: 'Arada', coordinates: [9.0355, 38.7525] as [number, number], distance: '0.8', hours: '8PM', phone: '+251 11 567 8901' },
-  { id: 8, name: 'Lideta Pharmacy', area: 'Lideta', coordinates: [9.015, 38.74] as [number, number], distance: '1.5', hours: '24 Hours', phone: '+251 11 275 4455' },
-  { id: 11, name: 'Megenagna Pharmacy', area: 'Yeka', coordinates: [9.018, 38.805] as [number, number], distance: '4.8', hours: '24 Hours', phone: '+251 11 660 9988' },
-];
-
-export type Pharmacy = typeof mockPharmacies[0];
-
-const MapPlaceholder = () => {
-    return (
-      <p>
-        A map is loading...
-      </p>
-    )
-  }
-
-const MapTilerComponent = () => {
+const MapContent = () => {
   const { getTranslation } = useLanguage();
-  const map = useMap();
 
   const mapTilerApiKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '7QM1kFuQqp5kD5Blg8oX';
-  const tileLayerUrl = `https://api.maptiler.com/maps/openstreetmap/{z}/{x}/{y}.jpg?key=${mapTilerApiKey}`;
+  const tileLayerUrl = `https://api.maptiler.com/maps/openstreetmap/256/{z}/{x}/{y}.jpg?key=${mapTilerApiKey}`;
   const attribution = `&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors & <a href="https://www.maptiler.com/">MapTiler</a>`;
   
-  const translations = {
+  const translations = useMemo(() => ({
       open24Hours: { en: 'Open 24 hours', am: '24 ሰዓት ክፍት', om: 'Sa\'aatii 24 Banaadha' },
       closesAt: { en: 'Closes at', am: 'የሚዘጋበት ሰዓት', om: 'Yoom Cufama' },
-  };
+  }), [getTranslation]);
 
   const markers = useMemo(() => mockPharmacies.map(p => (
       <Marker
@@ -82,18 +64,13 @@ const MapTilerComponent = () => {
 
 
 export function PharmacyMap() {
-    if (typeof window === 'undefined') {
-        return null;
-    }
-  
     return (
         <MapContainer 
             center={[9.0054, 38.7636]} // Centered on Addis Ababa
             zoom={12} 
             style={{ height: '100%', width: '100%' }}
-            placeholder={<MapPlaceholder />}
         >
-          <MapTilerComponent />
+          <MapContent />
         </MapContainer>
     );
 }

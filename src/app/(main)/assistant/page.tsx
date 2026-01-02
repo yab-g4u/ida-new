@@ -85,7 +85,7 @@ export default function AssistantPage() {
   const WelcomeScreen = () => (
     <div className="flex flex-col items-center justify-center h-full text-center p-4">
       <Sparkles className="h-12 w-12 text-muted-foreground" />
-      <h1 className="mt-4 font-headline text-4xl font-bold text-foreground">
+      <h1 className="mt-4 font-headline text-3xl md:text-4xl font-bold text-foreground">
         {getTranslation(translations.title)}
       </h1>
       
