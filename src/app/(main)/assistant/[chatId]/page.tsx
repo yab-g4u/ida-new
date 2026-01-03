@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useLanguage } from '@/hooks/use-language';
 import { aiHealthAssistant } from '@/ai/flows/ai-health-assistant';
-import { Loader2, Mic, Send, Sparkles, User, BookText, Search, MapPin, QrCode } from 'lucide-react';
+import { Loader2, Send, Sparkles, User, BookText, Search, MapPin, QrCode } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-provider';
@@ -38,8 +38,6 @@ export default function AssistantChatPage() {
   const params = useParams();
   const chatId = params.chatId as string;
 
-  const [isRecording, setIsRecording] = useState(false);
-
   const messagesQuery = useMemo(() => (user?.uid && db && chatId !== 'new')
     ? query(
         collection(db, `users/${user.uid}/chats/${chatId}/messages`),
@@ -49,6 +47,47 @@ export default function AssistantChatPage() {
   
   const { data: messages, loading: messagesLoading } = useCollection(messagesQuery);
 
+  const MainContent = useMemo(() => {
+    const translations = {
+      welcomeTitle: { en: `Good Morning, ${user?.displayName || 'there'}`, am: `እንደምን አደሩ, ${user?.displayName || 'user'}`, om: `Akkam Bulte, ${user?.displayName || 'user'}`},
+      welcomeSubtitle: {en: 'How can I help you today?', am: 'ዛሬ እንዴት ልረዳዎት እችላለሁ?', om: 'Har\'a akkamittiin si gargaaruu danda\'a?'},
+      searchMedicine: {en: 'Search Medicine Info', am: 'የመድሃኒት መረጃ ይፈልጉ', om: 'Odeeffannoo Qorichaa Barbaadi'},
+      locatePharmacy: {en: 'Locate a Pharmacy', am: 'ፋርማሲ ያግኙ', om: 'Faarmaasii Barbaadi'},
+      myQR: {en: 'View my QR Info', am: 'የእኔን QR መረጃ ይመልከቱ', om: 'Odeeffannoo QR Koo Ilaali'},
+    };
+
+    return (
+      <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col items-center justify-center p-4 text-center">
+          <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
+          <h1 className="text-3xl md:text-4xl font-headline text-foreground mb-2">
+              {getTranslation(translations.welcomeTitle)}
+          </h1>
+          <p className="text-muted-foreground mb-12">{getTranslation(translations.welcomeSubtitle)}</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+              <Link href="/search-medicine" passHref>
+                  <Card className="p-4 hover:bg-muted transition-colors text-left">
+                      <Search className="h-6 w-6 text-primary mb-2"/>
+                      <h3 className="font-semibold">{getTranslation(translations.searchMedicine)}</h3>
+                  </Card>
+              </Link>
+               <Link href="/locate-pharmacy" passHref>
+                  <Card className="p-4 hover:bg-muted transition-colors text-left">
+                      <MapPin className="h-6 w-6 text-primary mb-2"/>
+                      <h3 className="font-semibold">{getTranslation(translations.locatePharmacy)}</h3>
+                  </Card>
+              </Link>
+               <Link href="/my-qr-info" passHref>
+                  <Card className="p-4 hover:bg-muted transition-colors text-left">
+                      <QrCode className="h-6 w-6 text-primary mb-2"/>
+                      <h3 className="font-semibold">{getTranslation(translations.myQR)}</h3>
+                  </Card>
+              </Link>
+          </div>
+      </div>
+    );
+  }, [user, getTranslation]);
+
   const translations = useMemo(() => ({
     askAnything: { en: 'Ask our IDA anything', am: 'IDAን ማንኛውንም ነገር ይጠይቁ', om: 'IDA Gaaffii Kamiyyuu Gaafadhaa' },
     askMeAnythingPlaceholder: { en: 'Ask me anything...', am: 'ማንኛውንም ነገር ጠይቁኝ...', om: 'Gaaffii Kamiyyuu Na Gaafadhaa...' },
@@ -57,14 +96,7 @@ export default function AssistantChatPage() {
     ida: { en: 'IDA', am: 'IDA', om: 'IDA' },
     thinking: { en: 'Thinking...', am: 'እያሰበ ነው...', om: 'Yaadaa jira...' },
     citations: { en: 'Citations:', am: 'ማጣቀሻዎች፡', om: 'Wabiiwwan:' },
-    welcomeTitle: { en: `Good Morning, ${user?.displayName || 'there'}`, am: `እንደምን አደሩ, ${user?.displayName || 'user'}`, om: `Akkam Bulte, ${user?.displayName || 'user'}`},
-    welcomeSubtitle: {en: 'How can I help you today?', am: 'ዛሬ እንዴት ልረዳዎት እችላለሁ?', om: 'Har\'a akkamittiin si gargaaruu danda\'a?'},
-    searchMedicine: {en: 'Search Medicine Info', am: 'የመድሃኒት መረጃ ይፈልጉ', om: 'Odeeffannoo Qorichaa Barbaadi'},
-    locatePharmacy: {en: 'Locate a Pharmacy', am: 'ፋርማሲ ያግኙ', om: 'Faarmaasii Barbaadi'},
-    myQR: {en: 'View my QR Info', am: 'የእኔን QR መረጃ ይመልከቱ', om: 'Odeeffannoo QR Koo Ilaali'},
-    listening: { en: 'Listening...', am: 'እየሰማሁ ነው...', om: 'Dhaggeeffachaa jira...'},
-    micNotSupported: {en: 'Mic not supported', am: 'ማይክሮፎን አይደገፍም', om: 'Maayikiin hin deeggaramu'},
-  }), [language, user?.displayName]);
+  }), [language]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -74,36 +106,6 @@ export default function AssistantChatPage() {
       }
     }
   }, [messages, isLoading]);
-
-  const handleMicClick = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert(getTranslation(translations.micNotSupported));
-      return;
-    }
-    
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    const langMap = { en: 'en-US', am: 'am-ET', om: 'om-ET' };
-    recognition.lang = langMap[language];
-
-    recognition.onstart = () => setIsRecording(true);
-    recognition.onend = () => setIsRecording(false);
-    
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setInput(transcript);
-    };
-    
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      setIsRecording(false);
-    };
-
-    recognition.start();
-  };
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isLoading || !user?.uid || !db) return;
@@ -160,37 +162,6 @@ export default function AssistantChatPage() {
         setIsLoading(false);
     }
   };
-  
-  const MainContent = () => (
-    <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col items-center justify-center p-4 text-center">
-        <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
-        <h1 className="text-3xl md:text-4xl font-headline text-foreground mb-2">
-            {getTranslation(translations.welcomeTitle)}
-        </h1>
-        <p className="text-muted-foreground mb-12">{getTranslation(translations.welcomeSubtitle)}</p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-            <Link href="/search-medicine" passHref>
-                <Card className="p-4 hover:bg-muted transition-colors text-left">
-                    <Search className="h-6 w-6 text-primary mb-2"/>
-                    <h3 className="font-semibold">{getTranslation(translations.searchMedicine)}</h3>
-                </Card>
-            </Link>
-             <Link href="/locate-pharmacy" passHref>
-                <Card className="p-4 hover:bg-muted transition-colors text-left">
-                    <MapPin className="h-6 w-6 text-primary mb-2"/>
-                    <h3 className="font-semibold">{getTranslation(translations.locatePharmacy)}</h3>
-                </Card>
-            </Link>
-             <Link href="/my-qr-info" passHref>
-                <Card className="p-4 hover:bg-muted transition-colors text-left">
-                    <QrCode className="h-6 w-6 text-primary mb-2"/>
-                    <h3 className="font-semibold">{getTranslation(translations.myQR)}</h3>
-                </Card>
-            </Link>
-        </div>
-    </div>
-  );
 
   return (
     <div className="flex flex-col h-full w-full bg-background relative">
@@ -258,20 +229,17 @@ export default function AssistantChatPage() {
             <Textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={isRecording ? getTranslation(translations.listening) : getTranslation(translations.askMeAnythingPlaceholder)}
+                placeholder={getTranslation(translations.askMeAnythingPlaceholder)}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     handleSendMessage(input);
                     }
                 }}
-                className="bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 pr-24 min-h-[56px] max-h-48 resize-none"
+                className="bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 pr-16 min-h-[56px] max-h-48 resize-none"
                 rows={1}
             />
             <div className="absolute bottom-3 right-3 flex gap-1">
-                <Button type="button" size="icon" variant={isRecording ? 'destructive' : 'ghost'} onClick={handleMicClick} disabled={isLoading}>
-                    <Mic className="h-5 w-5" />
-                </Button>
                 <Button type="submit" size="icon" variant="ghost" onClick={() => handleSendMessage(input)} disabled={isLoading || !input.trim()}>
                     <Send className="h-5 w-5" />
                 </Button>

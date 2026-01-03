@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { mockMedicineData } from '@/lib/data';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Wand2, Send, Mic, Sparkles } from 'lucide-react';
+import { Loader2, Wand2, Send, Sparkles } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -71,7 +71,7 @@ export default function SearchMedicinePage() {
     setError('');
     try {
       const result = await simplifyMedicationInstructions({
-        instructions: mockMedicineData.complexInstructions[language],
+        instructions: mockMedicineData[0].complexInstructions[language],
         language: language,
       });
       setSimplifiedInstructions(result.simplifiedInstructions);
@@ -157,17 +157,17 @@ export default function SearchMedicinePage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="font-headline text-2xl">{getTranslation(translations.searchResultsFor)} "{mockMedicineData.name}"</CardTitle>
+              <CardTitle className="font-headline text-2xl">{getTranslation(translations.searchResultsFor)} "{mockMedicineData[0].name}"</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <InfoSection title={getTranslation(translations.usage)} content={getTranslation(mockMedicineData.usage)} />
-              <InfoSection title={getTranslation(translations.dosage)} content={getTranslation(mockMedicineData.dosage)} />
-              <InfoSection title={getTranslation(translations.sideEffects)} content={getTranslation(mockMedicineData.sideEffects)} />
-              <InfoSection title={getTranslation(translations.warnings)} content={getTranslation(mockMedicineData.warnings)} />
+              <InfoSection title={getTranslation(translations.usage)} content={getTranslation(mockMedicineData[0].usage)} />
+              <InfoSection title={getTranslation(translations.dosage)} content={getTranslation(mockMedicineData[0].dosage)} />
+              <InfoSection title={getTranslation(translations.sideEffects)} content={getTranslation(mockMedicineData[0].sideEffects)} />
+              <InfoSection title={getTranslation(translations.warnings)} content={getTranslation(mockMedicineData[0].warnings)} />
               
               <div className="space-y-2">
                 <h3 className="font-bold">{getTranslation(translations.complexInstructions)}</h3>
-                <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">{getTranslation(mockMedicineData.complexInstructions)}</p>
+                <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">{getTranslation(mockMedicineData[0].complexInstructions)}</p>
               </div>
               
               <Button onClick={handleSimplify} disabled={isSimplifying} className="w-full">
@@ -241,12 +241,9 @@ export default function SearchMedicinePage() {
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendChatMessage()}
                   placeholder={getTranslation(translations.chatbotPlaceholder)}
-                  className="pr-20"
+                  className="pr-12"
                 />
                 <div className="absolute top-1/2 right-2 -translate-y-1/2 flex items-center gap-1">
-                  <Button type="button" size="icon" variant="ghost" disabled={isBotReplying}>
-                    <Mic className="h-5 w-5" />
-                  </Button>
                   <Button type="button" size="icon" variant="ghost" onClick={handleSendChatMessage} disabled={isBotReplying || !chatInput.trim()}>
                     <Send className="h-5 w-5" />
                   </Button>
