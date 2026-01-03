@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Search, MapPin, QrCode, ChevronRight, User, Settings, ShieldCheck, BrainCircuit, Clock, HeartPulse, Siren, Phone, Mail } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-provider';
 import { useLanguage } from '@/hooks/use-language';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -32,7 +32,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 
@@ -149,26 +149,32 @@ export default function HomePage() {
   }, [language]);
 
   useEffect(() => {
-    async function fetchContact() {
-        if (!user?.uid || !db) return;
-        setIsContactLoading(true);
-        const docRef = doc(db, 'qr-info', user.uid);
-        try {
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists() && docSnap.data().emergencyContact) {
-                setEmergencyContact(docSnap.data().emergencyContact);
-            } else {
-                setEmergencyContact(null);
-            }
-        } catch (error) {
-            console.error("Error fetching emergency contact:", error);
+    if (!user?.uid || !db) {
+        setIsContactLoading(false);
+        return;
+    };
+
+    setIsContactLoading(true);
+    const docRef = doc(db, 'qr-info', user.uid);
+    
+    const unsubscribe = onSnapshot(docRef, 
+      (docSnap) => {
+        if (docSnap.exists() && docSnap.data().emergencyContact) {
+            setEmergencyContact(docSnap.data().emergencyContact);
+        } else {
             setEmergencyContact(null);
-        } finally {
-            setIsContactLoading(false);
         }
-    }
-    fetchContact();
-  }, [user, db, isDialogOpen]);
+        setIsContactLoading(false);
+      },
+      (error) => {
+        console.error("Error fetching emergency contact:", error);
+        setEmergencyContact(null);
+        setIsContactLoading(false);
+      }
+    );
+    
+    return () => unsubscribe();
+  }, [user, db]);
 
   const handleSendSOS = () => {
     console.log(`SOS sent to ${emergencyContact?.name} at ${emergencyContact?.phone}`);
@@ -201,15 +207,18 @@ export default function HomePage() {
 
   const sosButtonContent = () => {
     if (isContactLoading) {
-        return <Loader2 className="h-6 w-6 animate-spin" />;
+        return (
+             <Button variant="destructive" size="icon" className="rounded-full w-14 h-14 shadow-lg" disabled>
+                <Loader2 className="h-6 w-6 animate-spin" />
+            </Button>
+        );
     }
     if (emergencyContact) {
         return (
             <AlertDialog>
                 <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="w-full h-16 rounded-2xl flex-col">
-                        <Siren className="w-7 h-7 mb-1"/>
-                        <span className="font-bold">EMERGENCY SOS</span>
+                    <Button variant="destructive" size="icon" className="rounded-full w-14 h-14 shadow-lg flex-col">
+                        <Siren className="w-6 h-6"/>
                     </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -230,9 +239,8 @@ export default function HomePage() {
     return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-                 <Button variant="destructive" className="w-full h-16 rounded-2xl flex-col">
-                    <Siren className="w-7 h-7 mb-1"/>
-                    <span className="font-bold">EMERGENCY SOS</span>
+                 <Button variant="destructive" size="icon" className="rounded-full w-14 h-14 shadow-lg flex-col">
+                    <Siren className="w-6 h-6"/>
                 </Button>
             </DialogTrigger>
             <DialogContent>
@@ -264,53 +272,34 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-        <header className="bg-primary text-primary-foreground p-6 rounded-b-3xl shadow-lg">
-            <div className="flex justify-between items-center mb-4">
+    <div className="flex flex-col min-h-screen bg-muted/30 dark:bg-background">
+        <header className="bg-background dark:bg-muted/30 p-4 md:p-6 sticky top-0 z-10 shadow-sm">
+            <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="font-headline text-3xl font-bold">{welcomeTitle}</h1>
-                    <p className="text-sm opacity-90">{welcomeSubtitle}</p>
+                    <h1 className="font-headline text-2xl font-bold">{welcomeTitle}</h1>
+                    <p className="text-sm text-muted-foreground">{welcomeSubtitle}</p>
                 </div>
                 <div className="flex items-center gap-1">
-                    <button className="p-2 rounded-full hover:bg-white/20">
+                    <button className="p-2 rounded-full hover:bg-muted">
                         <User className="w-6 h-6" />
                     </button>
                     <ThemeToggle />
                 </div>
             </div>
-            <div className="grid grid-cols-3 gap-4 text-center">
-                {smallFeatureCards.map((feature, index) => (
-                    <div key={index} className="bg-white/20 rounded-lg p-3 flex flex-col items-center justify-center">
-                        <feature.icon className="w-7 h-7 mb-1"/>
-                        <span className="text-xs font-semibold">{getTranslation(feature.label)}</span>
-                    </div>
-                ))}
-            </div>
         </header>
       
-        <main className="flex-grow p-4 md:p-6 space-y-4">
-            <div className='pb-4'>
-                {sosButtonContent()}
-            </div>
-
-            <div className="space-y-4">
-                {featureCards.map((feature, index) => (
-                    <Link href={feature.href} key={index} passHref>
-                        <div className="bg-card text-card-foreground rounded-xl shadow-md hover:shadow-lg transition-shadow p-4 flex items-center">
-                            <div className={`p-3 rounded-lg ${feature.iconBg} mr-4`}>
-                                <feature.icon className={`w-6 h-6 ${feature.iconColor}`} />
-                            </div>
-                            <div className="flex-grow">
-                                <h2 className="font-bold text-lg">{getTranslation(feature.title)}</h2>
-                                <p className="text-sm text-muted-foreground">{getTranslation(feature.description)}</p>
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                    </Link>
+        <main className="flex-grow p-4 md:p-6 space-y-6">
+            
+            <div className="grid grid-cols-3 gap-3 text-center">
+                {smallFeatureCards.map((feature, index) => (
+                    <Card key={index} className="bg-card/80 dark:bg-card p-3 flex flex-col items-center justify-center shadow-sm">
+                        <feature.icon className="w-6 h-6 mb-1 text-primary"/>
+                        <span className="text-xs font-semibold">{getTranslation(feature.label)}</span>
+                    </Card>
                 ))}
             </div>
 
-            <Card className="mt-6 bg-accent border-accent-foreground/20">
+            <Card className="bg-accent/50 dark:bg-accent/20 border-none shadow-lg">
                 <CardHeader className="flex-row items-center gap-4 space-y-0 pb-2">
                     <HeartPulse className="h-6 w-6 text-primary" />
                     <CardTitle className="font-headline text-lg">{getTranslation({ en: 'Daily Health Tip', am: 'የዕለት ጤና ምክር', om: 'Gorsa Fayyaa Guyyaa' })}</CardTitle>
@@ -319,7 +308,27 @@ export default function HomePage() {
                     <p className="text-sm text-foreground/80 italic">"{dailyTip}"</p>
                 </CardContent>
             </Card>
+
+            <div className="space-y-4">
+                {featureCards.map((feature, index) => (
+                    <Link href={feature.href} key={index} passHref>
+                        <Card className="shadow-md hover:shadow-lg transition-shadow p-4 flex items-center bg-card">
+                            <div className={`p-3 rounded-lg ${feature.iconBg} mr-4`}>
+                                <feature.icon className={`w-6 h-6 ${feature.iconColor}`} />
+                            </div>
+                            <div className="flex-grow">
+                                <h2 className="font-bold text-base">{getTranslation(feature.title)}</h2>
+                                <p className="text-sm text-muted-foreground">{getTranslation(feature.description)}</p>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                        </Card>
+                    </Link>
+                ))}
+            </div>
         </main>
+        <div className="fixed bottom-24 right-4 z-50">
+            {sosButtonContent()}
+        </div>
     </div>
   );
 }
