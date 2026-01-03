@@ -126,7 +126,7 @@ export default function HomePage() {
   const translations = useMemo(() => ({
     sosSentTitle: {en: "SOS Sent", am: "SOS ተልኳል", om: "SOS Ergameera"},
     sosSentDesc: {en: "An emergency alert has been sent to your contact.", am: "የድንገተኛ ጊዜ ማንቂያ ወደ እውቂያዎ ተልኳል።", om: "Beeksisa hatattamaa quunnamtii keessaniif ergameera."},
-    sosConfirmTitle: {en: "Confirm SOS?", am: "SOSን ያረጋግጡ?", om: "SOS Mirkaneessituu?"},
+    sosConfirmTitle: {en: "Confirm SOS?", am: "SOSን ያረጋгጡ?", om: "SOS Mirkaneessituu?"},
     sosConfirmDesc: {en: "This will send an emergency alert to your saved contact. Are you sure?", am: "ይህ ለተቀመጠው እውቂያዎ የድንገተኛ ጊዜ ማንቂያ ይልካል። እርግጠኛ ነዎት?", om: "Kun quunnamtii kee galmaa'eef beeksisa hatattamaa erga. Ni mirkaneessitaa?"},
     cancel: {en: "Cancel", am: "ሰርዝ", om: "Haqi"},
     confirm: {en: "Confirm", am: "አረጋግጥ", om: "Mirkaneessi"},
@@ -173,8 +173,8 @@ export default function HomePage() {
   const handleSendSOS = () => {
     console.log(`SOS sent to ${emergencyContact?.name} at ${emergencyContact?.phone}`);
     toast({
-        title: translations.sosSentTitle[language],
-        description: `${translations.sosSentDesc[language]} (${emergencyContact?.name})`,
+        title: translations.sosSentTitle[language as keyof typeof translations.sosSentTitle],
+        description: `${translations.sosSentDesc[language as keyof typeof translations.sosSentDesc]} (${emergencyContact?.name})`,
     });
   };
 
@@ -189,11 +189,11 @@ export default function HomePage() {
     try {
         await setDoc(docRef, { emergencyContact: tempContact }, { merge: true });
         setEmergencyContact(tempContact);
-        toast({ title: translations.contactSaved[language]});
+        toast({ title: translations.contactSaved[language as keyof typeof translations.contactSaved]});
         setIsDialogOpen(false);
     } catch (error) {
         console.error("Error saving contact:", error);
-        toast({variant: 'destructive', title: translations.contactError[language]});
+        toast({variant: 'destructive', title: translations.contactError[language as keyof typeof translations.contactError]});
     } finally {
         setIsSaving(false);
     }
@@ -214,14 +214,14 @@ export default function HomePage() {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>{translations.sosConfirmTitle[language]}</AlertDialogTitle>
+                        <AlertDialogTitle>{translations.sosConfirmTitle[language as keyof typeof translations.sosConfirmTitle]}</AlertDialogTitle>
                         <AlertDialogDescription>
-                            {translations.sosConfirmDesc[language]}
+                            {translations.sosConfirmDesc[language as keyof typeof translations.sosConfirmDesc]}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>{translations.cancel[language]}</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleSendSOS}>{translations.confirm[language]}</AlertDialogAction>
+                        <AlertDialogCancel>{translations.cancel[language as keyof typeof translations.cancel]}</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleSendSOS}>{translations.confirm[language as keyof typeof translations.confirm]}</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -237,25 +237,25 @@ export default function HomePage() {
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{translations.setupContactTitle[language]}</DialogTitle>
+                    <DialogTitle>{translations.setupContactTitle[language as keyof typeof translations.setupContactTitle]}</DialogTitle>
                     <DialogDescription>
-                        {translations.setupContactDesc[language]}
+                        {translations.setupContactDesc[language as keyof typeof translations.setupContactDesc]}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <Label htmlFor="contact-name">{translations.contactName[language]}</Label>
+                        <Label htmlFor="contact-name">{translations.contactName[language as keyof typeof translations.contactName]}</Label>
                         <Input id="contact-name" value={tempContact.name} onChange={e => setTempContact({...tempContact, name: e.target.value})} />
                     </div>
                      <div className="space-y-2">
-                        <Label htmlFor="contact-phone">{translations.contactPhone[language]}</Label>
+                        <Label htmlFor="contact-phone">{translations.contactPhone[language as keyof typeof translations.contactPhone]}</Label>
                         <Input id="contact-phone" type="tel" value={tempContact.phone} onChange={e => setTempContact({...tempContact, phone: e.target.value})}/>
                     </div>
                 </div>
                 <DialogFooter>
                     <Button onClick={handleSaveContact} disabled={isSaving}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {translations.save[language]}
+                        {translations.save[language as keyof typeof translations.save]}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -323,5 +323,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    
