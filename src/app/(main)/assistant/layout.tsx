@@ -4,8 +4,8 @@ export default function AssistantLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="w-full h-full">
-      <main className="flex flex-col h-full">
+    <div className="w-full">
+      <main className="flex flex-col">
         {children}
       </main>
     </div>

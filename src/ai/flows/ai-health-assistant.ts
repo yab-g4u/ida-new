@@ -9,7 +9,8 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
+import { streamFlow } from '@genkit-ai/next/server';
 
 const AiHealthAssistantInputSchema = z.object({
   query: z.string().describe('The user query related to health.'),
@@ -23,15 +24,13 @@ const AiHealthAssistantOutputSchema = z.object({
 });
 type AiHealthAssistantOutput = z.infer<typeof AiHealthAssistantOutputSchema>;
 
-export async function aiHealthAssistant(input: AiHealthAssistantInput): Promise<AiHealthAssistantOutput> {
-  return aiHealthAssistantFlow(input);
+export async function aiHealthAssistant(input: AiHealthAssistantInput) {
+  return streamFlow(aiHealthAssistantStream, input);
 }
 
 const prompt = ai.definePrompt({
   name: 'aiHealthAssistantPrompt',
   input: {schema: AiHealthAssistantInputSchema},
-  output: {schema: AiHealthAssistantOutputSchema},
-  model: 'googleai/gemini-2.5-flash',
   prompt: `You are a helpful AI health assistant that provides real-time, grounded information in the user's preferred language.
   Your responses must be empathetic, professional, and use language suitable for the general public.
   All answers must be based on up-to-date, verifiable sources, and you must provide citations where applicable.
@@ -62,14 +61,53 @@ const prompt = ai.definePrompt({
   },
 });
 
-const aiHealthAssistantFlow = ai.defineFlow(
+const aiHealthAssistantStream = ai.defineFlow(
   {
-    name: 'aiHealthAssistantFlow',
+    name: 'aiHealthAssistantStream',
     inputSchema: AiHealthAssistantInputSchema,
-    outputSchema: AiHealthAssistantOutputSchema,
+    outputSchema: z.string(),
   },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  async (input, streamingCallback) => {
+    const {stream, response} = ai.generateStream({
+        model: 'googleai/gemini-2.5-flash',
+        prompt: {
+            text: `You are a helpful AI health assistant that provides real-time, grounded information in the user's preferred language.
+  Your responses must be empathetic, professional, and use language suitable for the general public.
+  All answers must be based on up-to-date, verifiable sources, and you must provide citations where applicable.
+
+  User Query: ${input.query}
+  Language: ${input.language}`
+        },
+        tools: [],
+        config: {
+            safetySettings: [
+              {
+                category: 'HARM_CATEGORY_HATE_SPEECH',
+                threshold: 'BLOCK_ONLY_HIGH',
+              },
+              {
+                category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+                threshold: 'BLOCK_NONE',
+              },
+              {
+                category: 'HARM_CATEGORY_HARASSMENT',
+                threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+              },
+              {
+                category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+                threshold: 'BLOCK_LOW_AND_ABOVE',
+              },
+            ],
+        }
+    });
+
+    for await (const chunk of stream) {
+        if(chunk.text) {
+            streamingCallback(chunk.text);
+        }
+    }
+
+    const final = await response;
+    return final.text || '';
   }
 );

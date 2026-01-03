@@ -9,6 +9,7 @@ import {
   where,
   collectionGroup,
   orderBy,
+  getDocs,
 } from 'firebase/firestore';
 import { useFirestore } from '../provider';
 
@@ -58,4 +59,17 @@ export const useCollection = <T extends DocumentData>(
   }, [db, q ? JSON.stringify(q) : null, options?.idField]); // Use JSON.stringify to create a stable dependency
 
   return { data, loading, error };
+};
+
+export const getCollection = async <T extends DocumentData>(
+  q: Query
+): Promise<(T & { id: string })[]> => {
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(
+    (doc) =>
+      ({
+        ...doc.data(),
+        id: doc.id,
+      } as T & { id: string })
+  );
 };

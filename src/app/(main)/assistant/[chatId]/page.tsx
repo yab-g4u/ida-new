@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useRef, useEffect, useMemo, useTransition } from 'react';
+import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useLanguage } from '@/hooks/use-language';
@@ -12,10 +12,13 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-provider';
 import { useFirestore, useCollection } from '@/firebase';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { collection, addDoc, serverTimestamp, query, orderBy, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { collection, addDoc, serverTimestamp, query, orderBy, doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { Card } from '@/components/ui/card';
 import { FormattedResponse } from '@/components/formatted-response';
+import { useToast } from '@/hooks/use-toast';
+
+export const maxDuration = 60; // Extend timeout to 60s
 
 interface Message {
   id: string;
@@ -44,99 +47,113 @@ export default function AssistantChatPage() {
   const { getTranslation, language } = useLanguage();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const viewportRef = useRef<HTMLDivElement>(null);
   
   const { user } = useAuth();
   const db = useFirestore();
-  const router = useRouter();
   const params = useParams();
+  const { toast } = useToast();
   const chatId = params.chatId as string;
 
-  const messagesQuery = useMemo(() => (user?.uid && db && chatId !== 'new')
-    ? query(
-        collection(db, `users/${user.uid}/chats/${chatId}/messages`),
-        orderBy('createdAt')
-      )
-    : null, [user?.uid, db, chatId]);
-  
-  const { data: firestoreMessages, loading: messagesLoading } = useCollection(messagesQuery);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(true);
 
-  const messages = useMemo(() => {
-    if (chatId === 'new') {
-      return localMessages;
-    }
-    const combined = [...(firestoreMessages || [])];
-    const localIds = new Set(combined.map(m => m.id));
-    localMessages.forEach(lm => {
-      if (!localIds.has(lm.id)) {
-        combined.push(lm);
-      }
-    });
-    return combined as Message[];
-  }, [firestoreMessages, localMessages, chatId]);
+  const fetchMessages = async () => {
+    if (!user?.uid || !db || chatId === 'new') {
+        setMessages([]);
+        setMessagesLoading(false);
+        return;
+    };
+    setMessagesLoading(true);
+    const q = query(collection(db, `users/${user.uid}/chats/${chatId}/messages`), orderBy('createdAt'));
+    const snapshot = await getDocs(q);
+    const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+    setMessages(msgs);
+    setMessagesLoading(false);
+  };
+  
+  useEffect(() => {
+    fetchMessages();
+  }, [user, db, chatId]);
+
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isLoading || !user?.uid || !db) return;
 
     let currentChatId = chatId;
-    const isNewChat = chatId === 'new';
+    let isNewChat = chatId === 'new';
 
     setInput('');
     setIsLoading(true);
-
+    
+    // Optimistically add user message
     const userMessage: Message = {
-      id: `local-${Date.now()}`,
+      id: `local-user-${Date.now()}`,
       text,
       sender: 'user',
       createdAt: new Date(),
     };
-    setLocalMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
+
+    // Optimistically add bot placeholder
+    const botMessagePlaceholder: Message = {
+      id: `local-bot-${Date.now()}`,
+      text: '',
+      sender: 'bot',
+      createdAt: new Date(),
+    };
+    setMessages(prev => [...prev, botMessagePlaceholder]);
+
 
     try {
       if (isNewChat) {
         const newChatRef = doc(collection(db, `users/${user.uid}/chats`));
         await setDoc(newChatRef, {
-          title: getTranslation({ en: 'New Chat', am: 'አዲስ ውይይት', om: 'Haasaa Haaraa' }),
+          title: text.substring(0, 40) + (text.length > 40 ? '...' : ''),
           createdAt: serverTimestamp(),
           userId: user.uid,
         });
         currentChatId = newChatRef.id;
-        // Do not use router.replace here as it causes issues. The user will be on the new URL for the next message.
-        // Let's update the window history to reflect the new chat ID without a full navigation.
+        isNewChat = false; // No longer a new chat
         window.history.replaceState(null, '', `/assistant/${currentChatId}`);
       }
 
-      const messagesRef = collection(db, `users/${user.uid}/chats/${currentChatId}/messages`);
+      // Add user message to DB
       const userMessageForDb = { text, sender: 'user', createdAt: serverTimestamp() };
-      await addDoc(messagesRef, userMessageForDb);
+      await addDoc(collection(db, `users/${user.uid}/chats/${currentChatId}/messages`), userMessageForDb);
       
-      const result = await aiHealthAssistant({ query: text, language });
-      const botMessage = {
-        text: result.response,
-        sender: 'bot',
-        citations: result.citations,
-        createdAt: serverTimestamp(),
-      };
-      await addDoc(messagesRef, botMessage);
+      const stream = await aiHealthAssistant({ query: text, language });
       
-      if (isNewChat && currentChatId) {
-        setLocalMessages([]); // Clear local messages as they will now come from firestore
-        const chatDocRef = doc(db, `users/${user.uid}/chats/${currentChatId}`);
-        const newTitle = text.substring(0, 40) + (text.length > 40 ? '...' : '');
-        await updateDoc(chatDocRef, { title: newTitle });
+      for await (const chunk of stream) {
+        setMessages(prev => prev.map(msg => 
+            msg.id === botMessagePlaceholder.id 
+            ? { ...msg, text: msg.text + chunk }
+            : msg
+        ));
       }
 
-    } catch (error) {
-      console.error("Error in handleSendMessage:", error);
-      const errorMessage: Message = {
-        id: `local-error-${Date.now()}`,
-        text: getTranslation(translations.errorEncountered),
-        sender: 'bot',
-        createdAt: new Date(),
-      };
-      setLocalMessages(prev => [...prev, errorMessage]);
+      const finalBotMessageText = messages.find(m => m.id === botMessagePlaceholder.id)?.text || '';
 
+      const finalBotMessageForDb = {
+        text: finalBotMessageText,
+        sender: 'bot',
+        createdAt: serverTimestamp(),
+      };
+      await addDoc(collection(db, `users/${user.uid}/chats/${currentChatId}/messages`), finalBotMessageForDb);
+      
+      // Remove local messages after DB is updated
+      setMessages(prev => prev.filter(m => !m.id.startsWith('local-')));
+      await fetchMessages(); // Refetch to get real IDs and timestamps
+
+    } catch (error) {
+        console.error("Error in handleSendMessage:", error);
+        toast({
+            variant: "destructive",
+            title: getTranslation({en: "Error", am: "ስህተት", om: "Dogoggora"}),
+            description: getTranslation(translations.errorEncountered)
+        });
+        // Remove optimistic messages on error
+        setMessages(prev => prev.filter(m => m.id !== userMessage.id && m.id !== botMessagePlaceholder.id));
     } finally {
         setIsLoading(false);
     }
@@ -207,19 +224,14 @@ export default function AssistantChatPage() {
                     <div className={cn("max-w-[75%] rounded-2xl p-3 text-sm", 
                         message.sender === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'
                     )}>
-                        {message.sender === 'bot' ? (
+                       {message.id.startsWith('local-bot') && message.text.length === 0 ? (
+                            <div className="flex items-center text-sm">
+                                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                {getTranslation(translations.thinking)}
+                            </div>
+                       ) : (
                           <FormattedResponse text={message.text} />
-                        ) : (
-                          <div className="whitespace-pre-wrap">{message.text}</div>
-                        )}
-                        {message.citations && (
-                            <Alert className="mt-4 bg-background/50 border-accent text-xs">
-                                <BookText className="h-4 w-4"/>
-                                <AlertDescription>
-                                    <strong>{getTranslation(translations.citations)}</strong> {message.citations}
-                                </AlertDescription>
-                            </Alert>
-                        )}
+                       )}
                     </div>
 
                     {message.sender === 'user' && (
@@ -229,23 +241,12 @@ export default function AssistantChatPage() {
                     )}
                     </div>
                 ))}
-                {isLoading && (
-                    <div className="flex items-start gap-4">
-                        <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
-                            <AvatarFallback><Sparkles className="h-5 w-5"/></AvatarFallback>
-                        </Avatar>
-                        <div className="flex items-center text-sm bg-muted p-3 rounded-2xl rounded-bl-none">
-                            <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                            {getTranslation(translations.thinking)}
-                        </div>
-                    </div>
-                )}
             </div>
             }
           </div>
       </ScrollArea>
 
-      <footer className="w-full p-4 bg-background/80 backdrop-blur-sm border-t pb-20">
+      <footer className="fixed bottom-0 left-0 w-full p-4 bg-background/80 backdrop-blur-sm border-t pb-20">
         <div className="max-w-4xl mx-auto">
             <div className="relative rounded-xl border bg-muted focus-within:ring-2 focus-within:ring-ring">
             <Textarea
