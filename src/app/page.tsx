@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/auth-provider';
 import { Icons } from '@/components/icons';
 
 function SplashScreen() {
@@ -17,17 +16,31 @@ function SplashScreen() {
 
 export default function Home() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    if (!loading) {
-      if (user) {
-        router.replace('/home');
-      } else {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (isClient) {
+      try {
+        const onboardingComplete = localStorage.getItem('onboardingComplete') === 'true';
+        const languageSelected = localStorage.getItem('languageSelected') === 'true';
+        
+        if (onboardingComplete) {
+          router.replace('/home');
+        } else if (languageSelected) {
+          router.replace('/onboarding');
+        } else {
+          router.replace('/language-select');
+        }
+      } catch (e) {
+        console.warn('Could not access localStorage, defaulting to language select.');
         router.replace('/language-select');
       }
     }
-  }, [loading, user, router]);
+  }, [router, isClient]);
 
   return <SplashScreen />;
 }

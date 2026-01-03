@@ -12,8 +12,8 @@ export default function OnboardingPage() {
     } catch (e) {
       console.warn('Could not save onboarding status to localStorage.');
     }
-    // After onboarding, the main page will handle the anonymous login
-    router.push('/'); 
+    // After onboarding, go to the home page. The AuthProvider will create the user.
+    router.push('/home'); 
   }
 
   return <OnboardingCarousel onOnboardingComplete={handleOnboardingComplete} />;

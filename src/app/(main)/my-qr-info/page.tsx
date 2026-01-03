@@ -127,16 +127,18 @@ export default function MyQrInfoPage() {
           const data = docSnap.data() as QrInfo;
           form.reset(data);
           generateQrData(data);
+        } else {
+          // If no data exists in Firestore, still set the name from the user object
+          form.reset({
+            ...form.getValues(),
+            name: user.displayName || '',
+          });
         }
         setIsLoading(false);
       },
       (error) => {
         console.error('Error fetching QR info:', error);
-        if (error instanceof Error && error.message.includes('offline')) {
-            toast({ title: getTranslation(translations.errorTitle), description: "You appear to be offline. Data could not be loaded.", variant: 'destructive' });
-        } else {
-            toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.loadingError), variant: 'destructive' });
-        }
+        toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.loadingError), variant: 'destructive' });
         setIsLoading(false);
       }
     );
