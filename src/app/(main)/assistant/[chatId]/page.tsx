@@ -122,22 +122,18 @@ export default function AssistantChatPage() {
       const userMessageForDb = { text, sender: 'user', createdAt: serverTimestamp() };
       await addDoc(collection(db, `users/${user.uid}/chats/${currentChatId}/messages`), userMessageForDb);
       
+      let finalBotMessageText = '';
       const stream = await aiHealthAssistant({ query: text, language });
-      const reader = stream.getReader();
-      const decoder = new TextDecoder();
-      
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        setMessages(prev => prev.map(msg => 
-            msg.id === botMessagePlaceholder.id 
-            ? { ...msg, text: msg.text + chunk }
-            : msg
-        ));
+      for await (const chunk of stream) {
+        if (chunk.response) {
+            finalBotMessageText += chunk.response;
+            setMessages(prev => prev.map(msg => 
+                msg.id === botMessagePlaceholder.id 
+                ? { ...msg, text: finalBotMessageText }
+                : msg
+            ));
+        }
       }
-
-      const finalBotMessageText = messages.find(m => m.id === botMessagePlaceholder.id)?.text || '';
 
       const finalBotMessageForDb = {
         text: finalBotMessageText,

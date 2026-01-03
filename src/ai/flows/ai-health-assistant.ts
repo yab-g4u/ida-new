@@ -6,7 +6,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { streamFlow } from '@genkit-ai/next/server';
 
 const AiHealthAssistantInputSchema = z.object({
   query: z.string().describe('The user question about a health topic.'),
@@ -17,13 +16,7 @@ const AiHealthAssistantOutputSchema = z.object({
   response: z.string().describe('The AI assistant response to the user query.'),
 });
 
-export const aiHealthAssistant = streamFlow(
-  {
-    name: 'aiHealthAssistantStream',
-    inputSchema: AiHealthAssistantInputSchema,
-    outputSchema: AiHealthAssistantOutputSchema,
-  },
-  async ({ query, language }) => {
+export async function* aiHealthAssistant({ query, language }: z.infer<typeof AiHealthAssistantInputSchema>) {
     const prompt = `You are a helpful AI health assistant. Your responses must be empathetic, professional, and use simple, human-level language suitable for the general public.
     Provide concise answers based on the user's query.
     The response must be in the language specified: ${language}.
@@ -38,20 +31,10 @@ export const aiHealthAssistant = streamFlow(
       stream: true,
     });
     
-    let responseText = '';
-    const outputStream = new ReadableStream<AiHealthAssistantOutputSchema>({
-      async start(controller) {
-        for await (const chunk of stream) {
-          const chunkText = chunk.text;
-          if (chunkText) {
-            responseText += chunkText;
-            controller.enqueue({ response: chunkText });
-          }
+    for await (const chunk of stream) {
+        const text = chunk.text;
+        if (text) {
+            yield { response: text };
         }
-        controller.close();
-      },
-    });
-
-    return outputStream;
-  }
-);
+    }
+}
