@@ -90,7 +90,7 @@ export const faqData: FaqItem[] = [
     },
     a: {
       en: 'A healthy diet has many benefits, including weight management, stronger bones and teeth, improved memory, better gut health, and a reduced risk of chronic diseases like heart disease, type 2 diabetes, and some cancers.',
-      am: 'ጤናማ አመጋገብ ክብደትን መቆጣጠር፣ ጠንካራ አጥንትና ጥርስ፣ የተሻለ የማስታወስ ችሎታ፣ የተሻለ የሆድ ዕቃ ጤንነት፣ እና እንደ የልብ በሽታ፣ ዓይነት 2 የስኳር በሽታ እና አንዳንድ የካንሰር አይነቶች ያሉ ሥር የሰደዱ በሽታዎችን የመጋለጥ እድልን መቀነስን ጨምሮ ብዙ ጥቅሞች አሉት። (T’ēnama āmigebi kibideti mek’ot’at’eri, t’enikara āt’initina t’irisi, yeteshale yemasitawesi chilota, yeteshale yehodi ik’a t’ēninineti, ina inide yelibi beshita, ‘type 2’ yessikwari beshita ina ānidenandi yekanis̱eri āyinetochi yalu sirisededu beshitawochini yemigalēt’i idilini mek’enesi ch’emiro bizu t’ik’imochi āluti።)',
+      am: 'ጤናማ አመጋገብ ክብደትን መቆጣጠር፣ ጠንካራ አጥንትና ጥርስ፣ የተሻለ የማስታወስ ችሎታ፣ የተሻለ የሆድ ዕቃ ጤንነት፣ እና እንደ የልብ በሽታ، ዓይነት 2 የስኳር በሽታ እና አንዳንድ የካንሰር አይነቶች ያሉ ሥር የሰደዱ በሽታዎችን የመጋለጥ እድልን መቀነስን ጨምሮ ብዙ ጥቅሞች አሉት። (T’ēnama āmigebi kibideti mek’ot’at’eri, t’enikara āt’initina t’irisi, yeteshale yemasitawesi chilota, yeteshale yehodi ik’a t’ēninineti, ina inide yelibi beshita, ‘type 2’ yessikwari beshita ina ānidenandi yekanis̱eri āyinetochi yalu sirisededu beshitawochini yemigalēt’i idilini mek’enesi ch’emiro bizu t’ik’imochi āluti።)',
       om: 'Nyaanni fayya qabeessi faayidaa hedduu qaba, kanneen akka too\'annoo ulfaatinaa, lafee fi ilkaan jabaataa, yaadannoo fooyya\'e, fayyaa garaachaa fooyya\'e, fi carraa dhukkuboota yeroo dheeraa kanneen akka dhukkuba onnee, sukkaara gosa 2, fi kaansariiwwan tokko tokkoo hir\'isuu dabalata.',
     },
   },

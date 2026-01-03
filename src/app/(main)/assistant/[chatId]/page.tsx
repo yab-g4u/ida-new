@@ -123,7 +123,7 @@ export default function AssistantChatPage() {
       await addDoc(collection(db, `users/${user.uid}/chats/${currentChatId}/messages`), userMessageForDb);
       
       let finalBotMessageText = '';
-      const stream = await aiHealthAssistant({ query: text, language });
+      const stream = aiHealthAssistant({ query: text, language });
       for await (const chunk of stream) {
         if (chunk.response) {
             finalBotMessageText += chunk.response;
