@@ -37,7 +37,7 @@ const commonQuestions = [
         icon: Activity,
         question: { en: "How can I lower my blood pressure?", am: "የደም ግፊቴን እንዴት ዝቅ ማድረግ እችላለሁ?", om: "Dhiibbaa dhiigaa koo akkamittan gadi buusuu danda'a?" },
     },
-    { 
+    { s_id: 'faq-3',
         icon: Heart,
         question: { en: "What are the benefits of a healthy diet?", am: "የጤናማ አመጋገብ ጥቅሞች ምንድ ናቸው?", om: "Faayidaan nyaata fayya qabeessa maali?" },
     },
