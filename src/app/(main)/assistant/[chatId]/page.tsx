@@ -95,7 +95,6 @@ export default function AssistantChatPage() {
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setInput(transcript);
-      handleSendMessage(transcript); // Automatically send after transcription
     };
     
     recognition.onerror = (event: any) => {
@@ -282,4 +281,3 @@ export default function AssistantChatPage() {
       </footer>
     </div>
   );
-}
