@@ -10,10 +10,10 @@ import { Loader2, Send, Sparkles, BookText, HelpCircle, Activity, Heart } from '
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-provider';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { collection, addDoc, serverTimestamp, query, orderBy, doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, doc, setDoc, updateDoc, getDocs } from 'firebase/firestore';
 import { Card } from '@/components/ui/card';
 import { FormattedResponse } from '@/components/formatted-response';
 import { useToast } from '@/hooks/use-toast';
@@ -123,8 +123,13 @@ export default function AssistantChatPage() {
       await addDoc(collection(db, `users/${user.uid}/chats/${currentChatId}/messages`), userMessageForDb);
       
       const stream = await aiHealthAssistant({ query: text, language });
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
       
-      for await (const chunk of stream) {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
         setMessages(prev => prev.map(msg => 
             msg.id === botMessagePlaceholder.id 
             ? { ...msg, text: msg.text + chunk }
