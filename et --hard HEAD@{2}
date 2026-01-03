@@ -1,0 +1,21 @@
+[33m6b4a5b3[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{0}: reset: moving to origin/main
+[33m0b79867[m HEAD@{1}: commit: Try fixing this error: `Build Error: Module not found: Can't resolve 'em
+[33m687046d[m HEAD@{2}: commit: on the plharmacy locator add a Pharmacy Ads Section — KEEP, but integrat
+[33mfa50a9b[m HEAD@{3}: commit: the qr generation is not working generate and save information button is
+[33m2db9f4e[m HEAD@{4}: commit: Act as a Senior Full Stack Engineer. I need to build a 'Medical ID Gener
+[33m6d4d747[m HEAD@{5}: commit: so after i fill out the forms when i hit save information the button is
+[33m1f83aea[m HEAD@{6}: commit: so on the response if there is a list i want it to be listed rather than
+[33m1ffb86f[m HEAD@{7}: commit: so on the ai assistant when the ai responds the text is not put in the a
+[33m1d1f136[m HEAD@{8}: commit: the microphone button is not working........
+[33m14cacb3[m HEAD@{9}: commit: on the ai assistant i want you to make the microphone functional for use
+[33m2b2a067[m HEAD@{10}: commit: some fix
+[33m4328e90[m HEAD@{11}: commit: you still havent changed it anyways seems like you cant do it and the so
+[33mc2cc87b[m HEAD@{12}: commit: so i didn't like the current home dashboard like it is not professional
+[33m477d70d[m HEAD@{13}: commit: so when the website starts it shows a logo then language selection fine
+[33m41e0aba[m HEAD@{14}: commit: FirebaseError: Firebase: Error (auth/admin-restricted-operation).
+[33m2282f3d[m HEAD@{15}: commit: Try fixing this error: `Console Error: FirebaseError: Failed to get docu
+[33m1e3faa5[m HEAD@{16}: commit: Try fixing this error: `Runtime Error: Error: ./src/app/search-medicine
+[33m26e7322[m HEAD@{17}: commit: okay it works now but not accurate enough like you can see in the image,
+[33mdc9bd92[m HEAD@{18}: commit: the medicine scanner still cant extract text like it is stuck saying pre
+[33m49ffc72[m HEAD@{19}: commit: it is still stuck saying preparig scanner so use one of the following fi
+[33mfa98c04[m HEAD@{20}: commit: intializing the ocr and extracting text from images is taking to much ti
