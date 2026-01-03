@@ -191,7 +191,7 @@ export default function LocatePharmacyPage() {
       </header>
 
       <main className="flex-1 relative z-0">
-        <PharmacyMap initialView={view} setMapRef={setMapRef} communityPharmacies={communityPharmacies}/>
+        <PharmacyMap initialView={view} mapRef={mapRef} communityPharmacies={communityPharmacies}/>
         {isLoadingLocation && !isSubmitting && (
              <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-20">
                  <Loader2 className="h-12 w-12 text-primary animate-spin" />
