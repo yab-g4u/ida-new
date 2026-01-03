@@ -40,4 +40,39 @@ export const mockMedicineData = [
   ];
   
   export type Pharmacy = typeof mockPharmacies[0];
+  export type CommunityPharmacy = {
+    id: number;
+    name: string;
+    comment?: string;
+    coordinates: [number, number];
+    addedByUser: true;
+  };
+
+export const sponsoredPharmacies = [
+    {
+        id: 'sp1',
+        name: 'LifeCare Pharmacy',
+        slogan: 'Your health is our priority. Visit us for quality medicines and expert advice.',
+        location: 'Bole, Addis Ababa',
+        hours: 'Open 24/7',
+        offer: '20% off on all vitamins',
+    },
+    {
+        id: 'sp2',
+        name: 'HealthPlus Pharmacy',
+        slogan: 'Your trusted partner in wellness. Wide range of products available.',
+        location: 'CMC, Addis Ababa',
+        hours: 'Closes at 11 PM',
+        offer: 'Free delivery on orders over 500 ETB',
+    },
+    {
+        id: 'sp3',
+        name: 'Unity Pharmacy',
+        slogan: 'Quality care, one prescription at a time.',
+        location: 'Piazza, Addis Ababa',
+        hours: 'Open 24/7',
+        offer: '15% discount for senior citizens',
+    },
+];
+  
   
