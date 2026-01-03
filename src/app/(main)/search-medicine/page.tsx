@@ -1,141 +1,75 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useLanguage } from '@/hooks/use-language';
-import { simplifyMedicationInstructions } from '@/ai/flows/simplify-medication-instructions';
-import { medicineSearchChatbot, MedicineSearchChatbotInput } from '@/ai/flows/medicine-search-chatbot';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { mockMedicineData } from '@/lib/data';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Wand2, Send, Sparkles } from 'lucide-react';
+import { Loader2, Search, X, Pill, Info, ShieldAlert } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/auth-provider';
-
-interface ChatMessage {
-  id: string;
-  text: string;
-  sender: 'user' | 'bot';
-}
+import { getDrugData, searchDrugs, type Drug } from '@/lib/drug-data';
 
 export default function SearchMedicinePage() {
-  const { language, getTranslation } = useLanguage();
-  const { user } = useAuth();
-  const [searchTerm, setSearchTerm] = useState('Amoxicillin');
-  const [isSimplifying, setIsSimplifying] = useState(false);
-  const [simplifiedInstructions, setSimplifiedInstructions] = useState('');
-  const [error, setError] = useState('');
+  const { getTranslation } = useLanguage();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [searchResults, setSearchResults] = useState<Drug[]>([]);
+  const [selectedDrug, setSelectedDrug] = useState<Drug | null>(null);
   
-  const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [isBotReplying, setIsBotReplying] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      const scrollElement = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-      if (scrollElement) {
-        scrollElement.scrollTop = scrollElement.scrollHeight;
-      }
+    async function loadData() {
+      await getDrugData();
+      setIsDataLoading(false);
     }
-  }, [chatMessages]);
-
-  // Load chat history from localStorage
-  useEffect(() => {
-    try {
-      const cachedChat = localStorage.getItem('medicineChatHistory');
-      if (cachedChat) {
-        setChatMessages(JSON.parse(cachedChat));
-      }
-    } catch (e) {
-      console.warn('Could not load chat history from localStorage');
-    }
+    loadData();
   }, []);
 
-  // Save chat history to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('medicineChatHistory', JSON.stringify(chatMessages));
-    } catch (e) {
-      console.warn('Could not save chat history to localStorage');
+  const handleSearch = (term: string) => {
+    if (isDataLoading || term.length < 2) {
+      setSearchResults([]);
+      if(selectedDrug) setSelectedDrug(null);
+      return;
     }
-  }, [chatMessages]);
+    setIsSearching(true);
+    const results = searchDrugs(term);
+    setSearchResults(results.slice(0, 50)); // Limit results for performance
+    setIsSearching(false);
+  };
 
+  const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    handleSearch(term);
+  };
 
-  const handleSimplify = async () => {
-    setIsSimplifying(true);
-    setSimplifiedInstructions('');
-    setError('');
-    try {
-      const result = await simplifyMedicationInstructions({
-        instructions: mockMedicineData[0].complexInstructions[language],
-        language: language,
-      });
-      setSimplifiedInstructions(result.simplifiedInstructions);
-    } catch (e) {
-      console.error(e);
-      setError(getTranslation({ en: 'Failed to simplify instructions. Please try again.', am: 'መመሪያዎችን ማቃለል አልተቻለም። እባክዎ እንደገና ይሞክሩ።', om: 'Qajeelfama salphisuun hin danda\'amne. Irra deebi\'ii yaali.' }));
-    }
-    setIsSimplifying(false);
+  const handleSelectDrug = (drug: Drug) => {
+    setSelectedDrug(drug);
+    setSearchTerm(drug.name);
+    setSearchResults([]);
   };
   
-  const handleSendChatMessage = useCallback(async () => {
-    if (!chatInput.trim()) return;
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setSearchResults([]);
+    setSelectedDrug(null);
+  };
 
-    const newUserMessage: ChatMessage = {
-      id: Date.now().toString(),
-      text: chatInput,
-      sender: 'user',
-    };
-
-    setChatMessages(prev => [...prev, newUserMessage]);
-    setChatInput('');
-    setIsBotReplying(true);
-
-    try {
-      const botResponse = await medicineSearchChatbot({
-        query: chatInput,
-        language: language,
-      });
-      
-      const newBotMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        text: botResponse.response,
-        sender: 'bot',
-      };
-      setChatMessages(prev => [...prev, newBotMessage]);
-
-    } catch (err) {
-      console.error("Chatbot error:", err);
-      const errorMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        text: getTranslation({en: "Sorry, I couldn't get a response. Please try again.", am: "ይቅርታ፣ ምላሽ ማግኘት አልቻልኩም። እባክዎ እንደገና ይሞክሩ።", om: "Dhiifama, deebii argachuu hin dandeenye. Irra deebi'ii yaali."}),
-        sender: 'bot',
-      };
-      setChatMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsBotReplying(false);
-    }
-  }, [chatInput, language, getTranslation]);
-
-  const translations = {
+  const translations = useMemo(() => ({
     title: { en: 'Search Medicine', am: 'መድሃኒት ይፈልጉ', om: 'Qoricha Barbaadi' },
-    description: { en: 'Enter a medicine name to get details and ask questions.', am: 'ዝርዝሮችን ለማግኘት እና ጥያቄዎችን ለመጠየቅ የመድሃኒት ስም ያስገቡ።', om: 'Tarreeffama argachuufii gaaffii gaafachuuf maqaa qorichaa galchi.' },
-    searchPlaceholder: { en: 'e.g., Amoxicillin', am: 'ለምሳሌ፣ አሞክሲሲሊን', om: 'Fkn, Amoxicillin' },
-    searchResultsFor: { en: 'Search Results for', am: 'የፍለጋ ውጤቶች ለ', om: 'Bu\'aawwan Barbaacha' },
-    usage: { en: 'Usage', am: 'አጠቃቀም', om: 'Itti Fayyadama' },
-    dosage: { en: 'Dosage', am: 'መጠን', om: 'Hamma' },
-    sideEffects: { en: 'Side Effects', am: 'የጎንዮሽ ጉዳቶች', om: 'Miidhaawwan Ciiqii' },
-    warnings: { en: 'Warnings', am: 'ማስጠንቀቂያዎች', om: 'Akeekkachiisoota' },
-    complexInstructions: { en: 'Original Instructions', am: 'የመጀመሪያ መመሪያዎች', om: 'Qajeelfamoota Jalqabaa' },
-    simplifyBtn: { en: 'Simplify Instructions', am: 'መመሪያዎችን አቅልል', om: 'Qajeelfama Salphisi' },
-    simplifiedTitle: { en: 'Easy-to-Understand Instructions', am: 'ለመረዳት ቀላል የሆኑ መመሪያዎች', om: 'Qajeelfamoota Hubachuuf Salphaa' },
-    chatbotTitle: { en: 'Ask IDA About This Medicine', am: 'ስለዚህ መድሃኒት IDAን ይጠይቁ', om: 'Waa\'ee Qoricha Kanaa IDA Gaafadhu'},
-    chatbotPlaceholder: { en: 'Type your question...', am: 'ጥያቄዎን ይተይቡ...', om: 'Gaaffii kee barreessi...'},
-  }
+    description: { en: 'Enter a medicine name to get information.', am: 'መረጃ ለማግኘት የመድሃኒት ስም ያስገቡ።', om: 'Odeeffannoo argachuuf maqaa qorichaa galchi.' },
+    searchPlaceholder: { en: 'Type a medicine name...', am: 'የመድሃኒት ስም ይተይቡ...', om: 'Maqaa qorichaa barreessi...'},
+    loadingDb: {en: 'Loading medicine database...', am: 'የመድሃኒት ዳታቤዝ በመጫን ላይ...', om: 'Kuusaa qorichaa galchaa jira...'},
+    genericName: {en: 'Generic Name', am: 'አጠቃላይ ስም', om: 'Maqaa Waliigalaa'},
+    drugClasses: {en: 'Drug Class', am: 'የመድሃኒት ክፍል', om: 'Gartuu Qorichaa'},
+    usage: {en: 'Common Usage', am: 'የተለመደ አጠቃቀም', om: 'Fayyadama Waliigalaa'},
+    dosage: {en: 'Dosage Forms', am: 'የመድሃኒት መጠን ቅጾች', om: 'Unkaawwan Hammii'},
+    sideEffects: {en: 'Side Effects', am: 'የጎንዮሽ ጉዳቶች', om: 'Miidhaawwan Ciiqii'},
+    contraindications: {en: 'Contraindications', am: 'የማይወሰድባቸው ሁኔታዎች', om: 'Haalawwan Hin Fudhatamne'},
+    noResults: {en: 'No results found for', am: 'ምንም ውጤት አልተገኘም ለ', om: 'Bu\'aan argame hin jiru'},
+    searchResults: {en: 'Search Results', am: 'የፍለጋ ውጤቶች', om: 'Bu\'aawwan Barbaacha'},
+  }), [getTranslation]);
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -144,124 +78,94 @@ export default function SearchMedicinePage() {
         <p className="text-muted-foreground">{getTranslation(translations.description)}</p>
       </header>
 
-      <div className="flex gap-2">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input 
           placeholder={getTranslation(translations.searchPlaceholder)}
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={handleSearchTermChange}
+          disabled={isDataLoading}
+          className="pl-10 text-lg h-12"
         />
-        <Button>{getTranslation({ en: 'Search', am: 'ፈልግ', om: 'Barbaadi' })}</Button>
+        {isDataLoading && <Loader2 className="absolute right-12 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin" />}
+        {searchTerm && (
+            <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2" onClick={handleClearSearch}>
+                <X className="h-5 w-5 text-muted-foreground" />
+            </Button>
+        )}
       </div>
+
+      {isDataLoading && (
+        <Alert>
+          <Loader2 className="h-4 w-4 animate-spin"/>
+          <AlertTitle>{getTranslation(translations.loadingDb)}</AlertTitle>
+        </Alert>
+      )}
+
+      {searchResults.length > 0 && (
+        <Card>
+            <CardHeader>
+                <CardTitle>{getTranslation(translations.searchResults)}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <ScrollArea className="h-64">
+                     <div className="flex flex-col gap-1">
+                        {searchResults.map((drug) => (
+                          <button
+                            key={drug.id}
+                            onClick={() => handleSelectDrug(drug)}
+                            className="w-full text-left p-3 rounded-md hover:bg-muted transition-colors flex items-center gap-3"
+                          >
+                            <Pill className="h-5 w-5 text-primary" />
+                            <span>{drug.name}</span>
+                          </button>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </CardContent>
+        </Card>
+      )}
+
+      {searchTerm && searchResults.length === 0 && !selectedDrug && !isSearching && !isDataLoading &&(
+         <Alert variant="destructive">
+            <AlertTitle>{getTranslation(translations.noResults)} "{searchTerm}"</AlertTitle>
+        </Alert>
+      )}
       
-      {searchTerm.toLowerCase() === 'amoxicillin' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-headline text-2xl">{getTranslation(translations.searchResultsFor)} "{mockMedicineData[0].name}"</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <InfoSection title={getTranslation(translations.usage)} content={getTranslation(mockMedicineData[0].usage)} />
-              <InfoSection title={getTranslation(translations.dosage)} content={getTranslation(mockMedicineData[0].dosage)} />
-              <InfoSection title={getTranslation(translations.sideEffects)} content={getTranslation(mockMedicineData[0].sideEffects)} />
-              <InfoSection title={getTranslation(translations.warnings)} content={getTranslation(mockMedicineData[0].warnings)} />
-              
-              <div className="space-y-2">
-                <h3 className="font-bold">{getTranslation(translations.complexInstructions)}</h3>
-                <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">{getTranslation(mockMedicineData[0].complexInstructions)}</p>
-              </div>
-              
-              <Button onClick={handleSimplify} disabled={isSimplifying} className="w-full">
-                {isSimplifying ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Wand2 className="mr-2 h-4 w-4" />
-                )}
-                {getTranslation(translations.simplifyBtn)}
-              </Button>
-              
-              {error && <Alert variant="destructive"><AlertTitle>{getTranslation({en: 'Error', am: 'ስህተት', om: 'Dogoggora' })}</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
-
-              {simplifiedInstructions && (
-                <Alert variant="default" className="bg-accent">
-                  <Wand2 className="h-4 w-4" />
-                  <AlertTitle className="font-headline">{getTranslation(translations.simplifiedTitle)}</AlertTitle>
-                  <AlertDescription className="text-base text-foreground">
-                    {simplifiedInstructions}
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Chatbot UI */}
-          <Card className="flex flex-col">
-            <CardHeader>
-              <CardTitle className="font-headline text-2xl">{getTranslation(translations.chatbotTitle)}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col h-[500px]">
-              <ScrollArea className="flex-1 mb-4" ref={scrollAreaRef}>
-                <div className="space-y-4 pr-4">
-                  {chatMessages.map((message) => (
-                     <div
-                        key={message.id}
-                        className={cn('flex items-start gap-3 w-full', { 'justify-end': message.sender === 'user' })}
-                    >
-                      {message.sender === 'bot' && (
-                          <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
-                              <AvatarFallback><Sparkles className="h-5 w-5"/></AvatarFallback>
-                          </Avatar>
-                      )}
-                      <div className={cn("max-w-[80%] rounded-2xl p-3 text-sm", 
-                          message.sender === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'
-                      )}>
-                          <p className="whitespace-pre-wrap">{message.text}</p>
-                      </div>
-                      {message.sender === 'user' && (
-                         <Avatar className="h-8 w-8">
-                              <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
-                          </Avatar>
-                      )}
-                    </div>
-                  ))}
-                   {isBotReplying && (
-                    <div className="flex items-start gap-3">
-                         <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
-                            <AvatarFallback><Sparkles className="h-5 w-5"/></AvatarFallback>
-                        </Avatar>
-                        <div className="flex items-center text-sm bg-muted p-3 rounded-2xl rounded-bl-none">
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                        </div>
-                    </div>
-                )}
-                </div>
-              </ScrollArea>
-              <div className="relative mt-auto">
-                <Input
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendChatMessage()}
-                  placeholder={getTranslation(translations.chatbotPlaceholder)}
-                  className="pr-12"
-                />
-                <div className="absolute top-1/2 right-2 -translate-y-1/2 flex items-center gap-1">
-                  <Button type="button" size="icon" variant="ghost" onClick={handleSendChatMessage} disabled={isBotReplying || !chatInput.trim()}>
-                    <Send className="h-5 w-5" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      {selectedDrug && (
+        <Card className='animate-in fade-in-50'>
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl">{selectedDrug.name}</CardTitle>
+            <CardDescription>{getTranslation(translations.genericName)}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <InfoSection title={getTranslation(translations.drugClasses)} content={selectedDrug.classes} icon={Pill} />
+            <InfoSection title={getTranslation(translations.usage)} content={selectedDrug.usage} icon={Info} />
+            <InfoSection title={getTranslation(translations.sideEffects)} content={selectedDrug.side_effects} icon={ShieldAlert} />
+            <InfoSection title={getTranslation(translations.contraindications)} content={selectedDrug.contraindications} icon={XCircle} />
+          </CardContent>
+        </Card>
       )}
     </div>
   );
 }
 
-function InfoSection({ title, content }: { title: string; content: string }) {
+import { XCircle } from 'lucide-react';
+
+function InfoSection({ title, content, icon: Icon }: { title: string; content: string; icon?: React.ElementType }) {
+  if (!content || content.toLowerCase() === 'n/a') return null;
+
   return (
-    <div className="space-y-1">
-      <h3 className="font-bold">{title}</h3>
-      <p className="text-sm text-muted-foreground">{content}</p>
+    <div className="flex items-start gap-4">
+        {Icon && (
+            <div className="p-2 bg-muted rounded-full mt-1">
+                <Icon className="h-5 w-5 text-primary" />
+            </div>
+        )}
+        <div className='flex-1'>
+            <h3 className="font-bold text-foreground">{title}</h3>
+            <p className="text-sm text-muted-foreground">{content}</p>
+        </div>
     </div>
   );
 }
