@@ -1,28 +1,28 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Camera, Loader2, Upload, X, Wand2, AlertCircle, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Camera, Upload, X, Wand2, AlertTriangle, ShieldCheck, CheckCircle, XCircle, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { analyzeMedicinePackage, type AnalyzeMedicinePackageOutput } from '@/ai/flows/analyze-medicine-package';
-import { mockMedicineData } from '@/lib/data';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import type { AnalyzeMedicinePackageOutput } from '@/ai/flows/analyze-medicine-package';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
 
-declare const Tesseract: any;
+const demoResult: AnalyzeMedicinePackageOutput = {
+  name: 'Generic Antibiotic',
+  usage: 'Take one capsule (250mg) every 12 hours with a full glass of water. It can be taken with or without food. Do not crush or chew the capsule. Finish the entire course of medication, even if you start to feel better.',
+  pros: 'Effectively treats a wide range of common bacterial infections such as respiratory tract infections, skin infections, and urinary tract infections. It works by stopping the growth of bacteria.',
+  cons: 'Possible side effects include nausea, diarrhea, and stomach upset. More serious side effects are rare but can include allergic reactions (rash, itching, swelling). This medication is not effective against viral infections like the common cold or flu.',
+};
 
-type VerificationStatus = 'verified' | 'caution' | 'unknown';
+type VerificationStatus = 'verified' | 'unknown';
 
 export default function ScanMedicinePage() {
   const [imageDataUri, setImageDataUri] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [ocrProgress, setOcrProgress] = useState(0);
-  const [ocrStatus, setOcrStatus] = useState('');
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
   const [aiResult, setAiResult] = useState<AnalyzeMedicinePackageOutput | null>(null);
-  const [isAiLoading, setIsAiLoading] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -30,11 +30,8 @@ export default function ScanMedicinePage() {
   const resetState = () => {
     setImageDataUri(null);
     setIsProcessing(false);
-    setOcrProgress(0);
-    setOcrStatus('');
     setVerificationStatus(null);
     setAiResult(null);
-    setIsAiLoading(false);
     if(fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -47,7 +44,7 @@ export default function ScanMedicinePage() {
     reader.onload = (e) => {
       const dataUri = e.target?.result as string;
       setImageDataUri(dataUri);
-      processImage(dataUri); // Immediately start processing
+      processImage(dataUri);
     };
     reader.readAsDataURL(file);
   };
@@ -60,72 +57,14 @@ export default function ScanMedicinePage() {
   };
 
   const processImage = async (dataUri: string) => {
-    if (typeof Tesseract === 'undefined') {
-      toast({ variant: 'destructive', title: 'OCR Not Loaded', description: 'Tesseract.js script not found. Please refresh the page.' });
-      return;
-    }
-    
     setIsProcessing(true);
-    setOcrStatus('Starting OCR...');
-    setOcrProgress(0);
-    setVerificationStatus(null);
-    setAiResult(null);
-
-    try {
-      const { data: { text } } = await Tesseract.recognize(
-        dataUri,
-        'eng',
-        {
-          logger: (m: any) => {
-            if (m.status === 'recognizing text') {
-              setOcrStatus('Recognizing text...');
-              setOcrProgress(Math.floor(m.progress * 100));
-            } else if (m.status) {
-              setOcrStatus(m.status.charAt(0).toUpperCase() + m.status.slice(1));
-            }
-          }
-        }
-      );
-      
-      const cleanedText = text.replace(/(\r\n|\n|\r)/gm, " ").trim();
-      verifyMedicine(cleanedText, dataUri);
-
-    } catch (error) {
-      console.error(error);
-      toast({ variant: 'destructive', title: 'OCR Failed', description: 'Could not extract text from the image.' });
-      setIsProcessing(false);
-    }
-  };
-
-  const verifyMedicine = (text: string, dataUri: string) => {
-    const lowercasedText = text.toLowerCase();
+    // Simulate a short processing time for the demo
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    const matchedMedicine = mockMedicineData.find(med => 
-        lowercasedText.includes(med.name.toLowerCase())
-    );
-
-    if (matchedMedicine) {
-      setVerificationStatus('verified');
-      fetchAiExplanation(dataUri, matchedMedicine.name);
-    } else {
-      setVerificationStatus('unknown');
-      setIsProcessing(false); // Stop processing if not verified
-    }
-  };
-
-  const fetchAiExplanation = async (dataUri: string, medicineName: string) => {
-    setIsAiLoading(true);
-    try {
-      const result = await analyzeMedicinePackage({ imageDataUri: dataUri });
-       // Use the matched name, but the AI result for other fields
-      setAiResult({ ...result, name: medicineName });
-    } catch (error) {
-      console.error(error);
-      toast({ variant: 'destructive', title: 'AI Analysis Failed', description: 'Could not get an explanation.' });
-    } finally {
-      setIsAiLoading(false);
-      setIsProcessing(false); // Final processing stop
-    }
+    // For the demo, we will always return the hardcoded result
+    setVerificationStatus('verified');
+    setAiResult(demoResult);
+    setIsProcessing(false);
   };
 
   if (!imageDataUri) {
@@ -156,7 +95,7 @@ export default function ScanMedicinePage() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="font-headline text-3xl">Verify Medicine</h1>
+        <h1 className="font-headline text-3xl">Scan Result</h1>
         <Button variant="ghost" size="icon" onClick={resetState}><X/></Button>
       </div>
       
@@ -171,83 +110,74 @@ export default function ScanMedicinePage() {
         </Card>
 
         <div className="space-y-6">
-          {(isProcessing || verificationStatus) && (
+          {isProcessing ? (
             <Card>
-              <CardHeader>
-                <CardTitle>{isProcessing ? "Processing..." : "Verification Result"}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {isProcessing && !verificationStatus && (
-                  <div className="space-y-2">
-                    <Progress value={ocrProgress} />
-                    <p className="text-sm text-muted-foreground text-center">{ocrStatus}</p>
-                  </div>
-                )}
-                
-                {verificationStatus === 'verified' && (aiResult || isAiLoading) && (
+              <CardContent className="pt-6 flex flex-col items-center justify-center text-center">
+                  <Wand2 className="h-10 w-10 animate-pulse text-primary" />
+                  <p className="mt-4 text-muted-foreground font-semibold">Analyzing your medicine...</p>
+                  <p className="mt-1 text-sm text-muted-foreground">This may take a moment.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {verificationStatus === 'verified' && aiResult && (
                   <Alert variant="default" className="bg-green-100 dark:bg-green-900/50 border-green-500">
                     <ShieldCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
                     <AlertTitle className="text-green-800 dark:text-green-300">Verified</AlertTitle>
                     <AlertDescription className="text-green-700 dark:text-green-400">
-                      Match found for "{aiResult?.name || '...'}".
+                      Match found for "Antibiotic 250mg".
                     </AlertDescription>
                   </Alert>
-                )}
-                {verificationStatus === 'unknown' && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-5 w-5" />
-                    <AlertTitle>Unknown Medicine</AlertTitle>
-                    <AlertDescription>
-                      Could not verify the medicine from the image.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                
-                {verificationStatus && (
-                  <Alert variant="default" className="mt-4 border-amber-500 bg-amber-50 dark:bg-amber-950">
-                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                    <AlertTitle className="text-amber-800 dark:text-amber-300">Disclaimer</AlertTitle>
-                    <AlertDescription className="text-amber-700 dark:text-amber-500">
-                      This is for informational purposes only and is not a medical diagnosis. Consult a professional.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
-          )}
+              )}
+              
+              {aiResult && (
+                 <Card className="bg-card">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 font-headline text-2xl">
+                            <Wand2 /> AI Summary
+                        </CardTitle>
+                        <CardDescription>Generated by IDA for "{aiResult.name}"</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="flex items-start gap-4">
+                            <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-full">
+                                <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-foreground">How to Take</h3>
+                                <p className="text-muted-foreground">{aiResult.usage}</p>
+                            </div>
+                        </div>
+                         <div className="flex items-start gap-4">
+                            <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-full">
+                               <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-foreground">Pros / Benefits</h3>
+                                <p className="text-muted-foreground">{aiResult.pros}</p>
+                            </div>
+                        </div>
+                         <div className="flex items-start gap-4">
+                            <div className="p-2 bg-red-100 dark:bg-red-900/50 rounded-full">
+                                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-foreground">Cons / Side Effects</h3>
+                                <p className="text-muted-foreground">{aiResult.cons}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                 </Card>
+              )}
 
-          {isAiLoading && (
-            <Card>
-              <CardContent className="pt-6 flex flex-col items-center justify-center text-center">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                  <p className="mt-2 text-muted-foreground">Generating AI explanation...</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {aiResult && (
-             <Card className="bg-accent/50 dark:bg-accent/20">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 font-headline text-2xl">
-                        <Wand2 /> AI Explanation
-                    </CardTitle>
-                    <CardDescription>Generated by IDA for "{aiResult.name}"</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div>
-                        <h3 className="font-bold text-primary">How to Take</h3>
-                        <p className="text-muted-foreground">{aiResult.usage}</p>
-                    </div>
-                     <div>
-                        <h3 className="font-bold text-green-600">Pros / Benefits</h3>
-                        <p className="text-muted-foreground">{aiResult.pros}</p>
-                    </div>
-                     <div>
-                        <h3 className="font-bold text-destructive">Cons / Side Effects</h3>
-                        <p className="text-muted-foreground">{aiResult.cons}</p>
-                    </div>
-                </CardContent>
-             </Card>
+              <Alert variant="default" className="mt-4 border-amber-500 bg-amber-50 dark:bg-amber-950">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                <AlertTitle className="text-amber-800 dark:text-amber-300">Disclaimer</AlertTitle>
+                <AlertDescription className="text-amber-700 dark:text-amber-500">
+                  This is for informational purposes only. Always consult a qualified healthcare professional before making any medical decisions.
+                </AlertDescription>
+              </Alert>
+            </>
           )}
         </div>
       </div>
