@@ -8,8 +8,6 @@ import { faqData } from '@/lib/faq-data';
 import { z } from 'zod';
 import Fuse from 'fuse.js';
 
-export const maxDuration = 60;
-
 const AiHealthAssistantInputSchema = z.object({
   query: z.string().describe('The user question about a health topic.'),
   language: z.enum(['am', 'om', 'en']).describe('The preferred language of the user.'),
