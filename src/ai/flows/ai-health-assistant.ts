@@ -10,7 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-import { streamFlow } from '@genkit-ai/next/server';
+import { streamFlow } from '@genkit-ai/next';
 
 const AiHealthAssistantInputSchema = z.object({
   query: z.string().describe('The user query related to health.'),
