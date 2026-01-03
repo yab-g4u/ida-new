@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useLanguage } from '@/hooks/use-language';
 import { aiHealthAssistant } from '@/ai/flows/ai-health-assistant';
-import { Loader2, Send, Sparkles, User, BookText, Search, MapPin, QrCode } from 'lucide-react';
+import { Loader2, Send, Sparkles, BookText, Search, MapPin, QrCode } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-provider';
@@ -48,7 +48,7 @@ export default function AssistantChatPage() {
   const { data: messages, loading: messagesLoading } = useCollection(messagesQuery);
 
   const MainContent = useMemo(() => {
-    if (!user) return null; // Prevent rendering if user is not loaded
+    if (!user) return null;
     const translations = {
       welcomeTitle: { en: `Good Morning, ${user?.displayName || 'there'}`, am: `እንደምን አደሩ, ${user?.displayName || 'user'}`, om: `Akkam Bulte, ${user?.displayName || 'user'}`},
       welcomeSubtitle: {en: 'How can I help you today?', am: 'ዛሬ እንዴት ልረዳዎት እችላለሁ?', om: 'Har\'a akkamittiin si gargaaruu danda\'a?'},
@@ -90,11 +90,8 @@ export default function AssistantChatPage() {
   }, [user, getTranslation]);
 
   const translations = useMemo(() => ({
-    askAnything: { en: 'Ask our IDA anything', am: 'IDAን ማንኛውንም ነገር ይጠይቁ', om: 'IDA Gaaffii Kamiyyuu Gaafadhaa' },
     askMeAnythingPlaceholder: { en: 'Ask me anything...', am: 'ማንኛውንም ነገር ጠይቁኝ...', om: 'Gaaffii Kamiyyuu Na Gaafadhaa...' },
     errorEncountered: { en: 'Sorry, I encountered an error. Please try again.', am: 'ይቅርታ፣ ስህተት አጋጥሞኛል። እባክዎ እንደገና ይሞክሩ።', om: 'Dhiifama, dogoggoraatu mudate. Irra deebi\'ii yaali.' },
-    you: { en: 'You', am: 'እርስዎ', om: 'Isin' },
-    ida: { en: 'IDA', am: 'IDA', om: 'IDA' },
     thinking: { en: 'Thinking...', am: 'እያሰበ ነው...', om: 'Yaadaa jira...' },
     citations: { en: 'Citations:', am: 'ማጣቀሻዎች፡', om: 'Wabiiwwan:' },
   }), [language]);
@@ -165,13 +162,13 @@ export default function AssistantChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-background relative">
+    <div className="flex flex-col h-screen w-full bg-background relative">
       <ScrollArea className="flex-1" ref={scrollAreaRef}>
-          <div className="p-4 md:p-6 h-full">
+          <div className="p-4 md:p-6 h-full pb-24">
             {messagesLoading && chatId !== 'new' ? 
               <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div> :
               (!messages || messages.length === 0) ? <div className='flex items-center justify-center h-full'>{MainContent}</div> :
-            <div className="space-y-8 pb-24 max-w-4xl mx-auto">
+            <div className="space-y-8 max-w-4xl mx-auto">
                 {(messages as Message[]).map((message) => (
                     <div
                         key={message.id}
@@ -224,7 +221,7 @@ export default function AssistantChatPage() {
           </div>
       </ScrollArea>
 
-      <footer className="w-full p-4 bg-transparent border-t">
+      <footer className="absolute bottom-0 left-0 w-full p-4 bg-background/80 backdrop-blur-sm border-t">
         <div className="max-w-4xl mx-auto">
             <div className="relative rounded-xl border bg-muted focus-within:ring-2 focus-within:ring-ring">
             <Textarea
@@ -251,5 +248,3 @@ export default function AssistantChatPage() {
     </div>
   );
 }
-
-    

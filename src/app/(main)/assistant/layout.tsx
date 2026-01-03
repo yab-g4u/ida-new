@@ -5,7 +5,7 @@ export default function AssistantLayout({
 }) {
   return (
     <div className="h-full w-full bg-muted/40">
-      <main className="flex-1 flex flex-col overflow-hidden h-full">
+      <main className="flex flex-col h-full">
         {children}
       </main>
     </div>
