@@ -140,7 +140,8 @@ export default function AssistantChatPage() {
           userId: user.uid,
         });
         currentChatId = newChatRef.id;
-        router.replace(`/assistant/${currentChatId}`);
+        // Important: Use replace to avoid breaking browser back button
+        router.replace(`/assistant/${currentChatId}`); 
       }
 
       const messagesRef = collection(db, `users/${user.uid}/chats/${currentChatId}/messages`);
@@ -301,3 +302,5 @@ export default function AssistantChatPage() {
     </div>
   );
 }
+
+    
