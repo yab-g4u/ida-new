@@ -2,61 +2,56 @@
 
 /**
  * @fileOverview A conversational AI health assistant that provides real-time, grounded information in Amharic, Oromo, and English.
- * This is a mock implementation that uses a local FAQ library for demo purposes.
  */
 
-import { faqData, type FaqItem } from '@/lib/faq-data';
+import { ai } from '@/ai/genkit';
+import { z } from 'zod';
+import { streamFlow } from '@genkit-ai/next/server';
 
-interface AiHealthAssistantInput {
-  query: string;
-  language: 'en' | 'am' | 'om';
-}
+const AiHealthAssistantInputSchema = z.object({
+  query: z.string().describe('The user question about a health topic.'),
+  language: z.enum(['am', 'om', 'en']).describe('The preferred language of the user.'),
+});
 
-function findAnswer(query: string, language: 'en' | 'am' | 'om'): string | null {
-  const lowerCaseQuery = query.toLowerCase().trim();
-  
-  for (const item of faqData) {
-    const question = item.q[language]?.toLowerCase();
-    if (question && question.includes(lowerCaseQuery)) {
-      return item.a[language];
-    }
+const AiHealthAssistantOutputSchema = z.object({
+  response: z.string().describe('The AI assistant response to the user query.'),
+});
+
+export const aiHealthAssistant = streamFlow(
+  {
+    name: 'aiHealthAssistantStream',
+    inputSchema: AiHealthAssistantInputSchema,
+    outputSchema: AiHealthAssistantOutputSchema,
+  },
+  async ({ query, language }) => {
+    const prompt = `You are a helpful AI health assistant. Your responses must be empathetic, professional, and use simple, human-level language suitable for the general public.
+    Provide concise answers based on the user's query.
+    The response must be in the language specified: ${language}.
+    
+    User Query: "${query}"
+    Language: ${language}
+    `;
+
+    const { stream } = await ai.generate({
+      model: 'googleai/gemini-1.5-flash-latest',
+      prompt: prompt,
+      stream: true,
+    });
+    
+    let responseText = '';
+    const outputStream = new ReadableStream<AiHealthAssistantOutputSchema>({
+      async start(controller) {
+        for await (const chunk of stream) {
+          const chunkText = chunk.text;
+          if (chunkText) {
+            responseText += chunkText;
+            controller.enqueue({ response: chunkText });
+          }
+        }
+        controller.close();
+      },
+    });
+
+    return outputStream;
   }
-
-  // Check for greetings or simple phrases
-  const directMatch = faqData.find(item => item.q[language]?.toLowerCase() === lowerCaseQuery);
-  if (directMatch) {
-    return directMatch.a[language];
-  }
-
-  return null;
-}
-
-export async function aiHealthAssistant(input: AiHealthAssistantInput): Promise<ReadableStream<string>> {
-  const { query, language } = input;
-
-  let answer = findAnswer(query, language);
-
-  if (!answer) {
-    const fallbackAnswers = {
-        en: "I'm sorry, I can only answer a few questions for this demo. Please try one of the suggestions.",
-        am: "ይቅርታ፣ ለዚህ ማሳያ ጥቂት ጥያቄዎችን ብቻ መመለስ እችላለሁ። እባክዎ ከቀረቡት አማራጮች ውስጥ አንዱን ይሞክሩ። (Yik’irita, lezzi masaya t’ik’it k’it’ak’ewochini bicha memeles ichilalehu. Ibakiwo ke k’erebuti amirach’ochi wisit’i anduni yimokiru.)",
-        om: "Dhiifama, agarsiisa kanaaf gaaffiiwwan muraasa qofa deebisuun danda'a. Maaloo yaada dhiyaate keessaa tokko yaali.",
-    };
-    answer = fallbackAnswers[language];
-  }
-
-  // Simulate a streaming response
-  const stream = new ReadableStream({
-    async start(controller) {
-      const chunks = answer!.split(' ');
-      for (const chunk of chunks) {
-        // Add a small delay to simulate typing
-        await new Promise(resolve => setTimeout(resolve, 50));
-        controller.enqueue(chunk + ' ');
-      }
-      controller.close();
-    },
-  });
-
-  return stream;
-}
+);
