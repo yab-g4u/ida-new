@@ -26,10 +26,6 @@ interface Message {
   createdAt: any;
 }
 
-// Check for SpeechRecognition API
-const SpeechRecognition =
-  (typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition));
-
 export default function AssistantChatPage() {
   const { getTranslation, language } = useLanguage();
   const [input, setInput] = useState('');
@@ -43,7 +39,6 @@ export default function AssistantChatPage() {
   const chatId = params.chatId as string;
 
   const [isRecording, setIsRecording] = useState(false);
-  const recognitionRef = useRef<any>(null);
 
   const messagesQuery = useMemo(() => (user?.uid && db && chatId !== 'new')
     ? query(
@@ -80,9 +75,13 @@ export default function AssistantChatPage() {
     }
   }, [messages, isLoading]);
 
-  useEffect(() => {
-    if (!SpeechRecognition) return;
-
+  const handleMicClick = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert(getTranslation(translations.micNotSupported));
+      return;
+    }
+    
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
@@ -92,34 +91,20 @@ export default function AssistantChatPage() {
 
     recognition.onstart = () => setIsRecording(true);
     recognition.onend = () => setIsRecording(false);
+    
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setInput(transcript);
+      handleSendMessage(transcript); // Automatically send after transcription
     };
+    
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
       setIsRecording(false);
     };
 
-    recognitionRef.current = recognition;
-
-    return () => {
-      recognition.stop();
-    };
-  }, [language]);
-
-  const handleMicClick = () => {
-    if (!recognitionRef.current) {
-        alert(getTranslation(translations.micNotSupported));
-        return;
-    }
-    if (isRecording) {
-      recognitionRef.current.stop();
-    } else {
-      recognitionRef.current.start();
-    }
+    recognition.start();
   };
-
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isLoading || !user?.uid || !db) return;
@@ -128,11 +113,9 @@ export default function AssistantChatPage() {
     const isNewChat = chatId === 'new';
 
     setInput('');
-    
     setIsLoading(true);
 
     try {
-      // 1. Create a new chat document if it's a new chat
       if (isNewChat) {
         const newChatRef = doc(collection(db, `users/${user.uid}/chats`));
         await setDoc(newChatRef, {
@@ -141,17 +124,13 @@ export default function AssistantChatPage() {
           userId: user.uid,
         });
         currentChatId = newChatRef.id;
-        // Important: Use replace to avoid breaking browser back button
         router.replace(`/assistant/${currentChatId}`); 
       }
 
       const messagesRef = collection(db, `users/${user.uid}/chats/${currentChatId}/messages`);
-
-      // 2. Add user message to Firestore
       const userMessage = { text, sender: 'user', createdAt: serverTimestamp() };
       await addDoc(messagesRef, userMessage);
       
-      // 3. Get AI response
       const result = await aiHealthAssistant({ query: text, language });
       const botMessage = {
         text: result.response,
@@ -161,8 +140,7 @@ export default function AssistantChatPage() {
       };
       await addDoc(messagesRef, botMessage);
       
-      // 4. If it was a new chat, update the title based on the first interaction
-      if (isNewChat) {
+      if (isNewChat && currentChatId) {
         const chatDocRef = doc(db, `users/${user.uid}/chats/${currentChatId}`);
         const newTitle = text.substring(0, 40) + (text.length > 40 ? '...' : '');
         await updateDoc(chatDocRef, { title: newTitle });
@@ -292,7 +270,7 @@ export default function AssistantChatPage() {
                 rows={1}
             />
             <div className="absolute bottom-3 right-3 flex gap-1">
-                <Button type="button" size="icon" variant={isRecording ? 'destructive' : 'ghost'} onClick={handleMicClick}>
+                <Button type="button" size="icon" variant={isRecording ? 'destructive' : 'ghost'} onClick={handleMicClick} disabled={isLoading}>
                     <Mic className="h-5 w-5" />
                 </Button>
                 <Button type="submit" size="icon" variant="ghost" onClick={() => handleSendMessage(input)} disabled={isLoading || !input.trim()}>
@@ -305,3 +283,5 @@ export default function AssistantChatPage() {
     </div>
   );
 }
+
+    

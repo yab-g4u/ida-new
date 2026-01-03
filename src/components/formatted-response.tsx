@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -8,23 +7,26 @@ interface FormattedResponseProps {
 }
 
 const parseBold = (text: string) => {
-  const parts = text.split(/\*\*(.*?)\*\*/g);
+  if (!text) return text;
+  const parts = text.split(/(\*\*.*?\*\*)/g);
   return parts.map((part, index) => {
-    if (index % 2 === 1) {
-      return <strong key={index}>{part}</strong>;
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>;
     }
     return part;
   });
 };
 
 export function FormattedResponse({ text }: FormattedResponseProps) {
-  const paragraphs = text.split('\n\n');
+  if (!text) return null;
+
+  const blocks = text.split('\n\n');
 
   return (
     <div className="space-y-4">
-      {paragraphs.map((paragraph, pIndex) => {
-        const lines = paragraph.split('\n');
-        const isList = lines.every(line => line.trim().startsWith('* ') || line.trim().startsWith('- '));
+      {blocks.map((block, pIndex) => {
+        const lines = block.split('\n').filter(line => line.trim() !== '');
+        const isList = lines.length > 1 && lines.every(line => line.trim().startsWith('* ') || line.trim().startsWith('- '));
 
         if (isList) {
           return (
@@ -52,3 +54,5 @@ export function FormattedResponse({ text }: FormattedResponseProps) {
     </div>
   );
 }
+
+    
