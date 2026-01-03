@@ -162,9 +162,9 @@ export default function AssistantChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-background relative">
+    <div className="flex flex-col h-screen w-full bg-background pb-20">
       <ScrollArea className="flex-1" ref={scrollAreaRef}>
-          <div className="p-4 md:p-6 h-full pb-24">
+          <div className="p-4 md:p-6 h-full">
             {messagesLoading && chatId !== 'new' ? 
               <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div> :
               (!messages || messages.length === 0) ? <div className='flex items-center justify-center h-full'>{MainContent}</div> :
@@ -221,7 +221,7 @@ export default function AssistantChatPage() {
           </div>
       </ScrollArea>
 
-      <footer className="absolute bottom-0 left-0 w-full p-4 bg-background/80 backdrop-blur-sm border-t">
+      <footer className="mt-auto w-full p-4 bg-background/80 backdrop-blur-sm border-t">
         <div className="max-w-4xl mx-auto">
             <div className="relative rounded-xl border bg-muted focus-within:ring-2 focus-within:ring-ring">
             <Textarea
