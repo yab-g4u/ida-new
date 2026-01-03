@@ -39,6 +39,15 @@ const formSchema = z.object({
 
 type QrInfo = z.infer<typeof formSchema>;
 
+const dummyQrData = JSON.stringify({
+  N: "John Doe",
+  B: "O+",
+  A: "Peanuts",
+  M: "Lisinopril",
+  C: "Hypertension"
+});
+
+
 export default function MyQrInfoPage() {
   const { getTranslation } = useLanguage();
   const { user } = useAuth();
@@ -53,15 +62,15 @@ export default function MyQrInfoPage() {
   const form = useForm<QrInfo>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: user?.displayName || '',
-      bloodType: '',
-      allergies: '',
-      prescriptions: '',
-      medicalNotes: '',
-      emergencyContact: { name: '', phone: '' },
+      name: user?.displayName || 'John Doe',
+      bloodType: 'O+',
+      allergies: 'Peanuts',
+      prescriptions: 'Lisinopril',
+      medicalNotes: 'Hypertension',
+      emergencyContact: { name: 'Jane Doe', phone: '123-456-7890' },
       pdfUrl: '',
       pdfFileName: '',
-      qrData: '',
+      qrData: dummyQrData,
     },
   });
   
@@ -112,11 +121,19 @@ export default function MyQrInfoPage() {
       (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data() as QrInfo;
+           if (!data.qrData) {
+            data.qrData = dummyQrData;
+          }
           form.reset(data);
         } else {
-          form.reset({
-            ...form.getValues(),
-            name: user.displayName || '',
+           form.reset({
+            name: user.displayName || 'John Doe',
+            bloodType: 'O+',
+            allergies: 'Peanuts',
+            prescriptions: 'Lisinopril',
+            medicalNotes: 'Hypertension',
+            emergencyContact: { name: 'Jane Doe', phone: '123-456-7890' },
+            qrData: dummyQrData,
           });
         }
         setIsLoading(false);
@@ -142,7 +159,6 @@ export default function MyQrInfoPage() {
     try {
       const docRef = doc(db, 'qr-info', user.uid);
       
-      // Simplified data for QR code generation
       const vitalInfo = {
         N: values.name,
         B: values.bloodType,
@@ -159,7 +175,7 @@ export default function MyQrInfoPage() {
       };
 
       await setDoc(docRef, finalValues, { merge: true });
-      form.reset(finalValues); // This will update the UI with the new qrData
+      form.reset(finalValues);
       setFileToUpload(null);
       toast({ title: getTranslation(translations.successTitle), description: getTranslation(translations.saveSuccess) });
     } catch (error) {
