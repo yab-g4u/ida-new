@@ -1,19 +1,16 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo, useTransition } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useLanguage } from '@/hooks/use-language';
 import { aiHealthAssistant } from '@/ai/flows/ai-health-assistant';
-import { Loader2, Send, Sparkles, BookText, HelpCircle, Activity, Heart } from 'lucide-react';
+import { Loader2, Send, Sparkles, BookText, HelpCircle, Activity, Heart, ArrowLeft } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-provider';
-import { useFirestore } from '@/firebase';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { collection, addDoc, serverTimestamp, query, orderBy, doc, setDoc, updateDoc, getDocs } from 'firebase/firestore';
 import { Card } from '@/components/ui/card';
 import { FormattedResponse } from '@/components/formatted-response';
 import { useToast } from '@/hooks/use-toast';
@@ -24,7 +21,6 @@ interface Message {
   id: string;
   text: string;
   sender: 'user' | 'bot';
-  citations?: string;
   createdAt: any;
 }
 
@@ -37,7 +33,7 @@ const commonQuestions = [
         icon: Activity,
         question: { en: "How can I lower my blood pressure?", am: "የደም ግፊቴን እንዴት ዝቅ ማድረግ እችላለሁ?", om: "Dhiibbaa dhiigaa koo akkamittan gadi buusuu danda'a?" },
     },
-    { s_id: 'faq-3',
+    {
         icon: Heart,
         question: { en: "What are the benefits of a healthy diet?", am: "የጤናማ አመጋገብ ጥቅሞች ምንድ ናቸው?", om: "Faayidaan nyaata fayya qabeessa maali?" },
     },
@@ -50,80 +46,40 @@ export default function AssistantChatPage() {
   const viewportRef = useRef<HTMLDivElement>(null);
   
   const { user } = useAuth();
-  const db = useFirestore();
   const params = useParams();
+  const router = useRouter();
   const { toast } = useToast();
   const chatId = params.chatId as string;
 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [messagesLoading, setMessagesLoading] = useState(true);
-
-  const fetchMessages = async () => {
-    if (!user?.uid || !db || chatId === 'new') {
-        setMessages([]);
-        setMessagesLoading(false);
-        return;
-    };
-    setMessagesLoading(true);
-    const q = query(collection(db, `users/${user.uid}/chats/${chatId}/messages`), orderBy('createdAt'));
-    const snapshot = await getDocs(q);
-    const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
-    setMessages(msgs);
-    setMessagesLoading(false);
-  };
-  
-  useEffect(() => {
-    fetchMessages();
-  }, [user, db, chatId]);
-
 
   const handleSendMessage = async (text: string) => {
-    if (!text.trim() || isLoading || !user?.uid || !db) return;
-
-    let currentChatId = chatId;
-    let isNewChat = chatId === 'new';
+    if (!text.trim() || isLoading) return;
 
     setInput('');
     setIsLoading(true);
     
-    // Optimistically add user message
     const userMessage: Message = {
-      id: `local-user-${Date.now()}`,
+      id: `user-${Date.now()}`,
       text,
       sender: 'user',
       createdAt: new Date(),
     };
-    setMessages(prev => [...prev, userMessage]);
-
-    // Optimistically add bot placeholder
+    
     const botMessagePlaceholder: Message = {
-      id: `local-bot-${Date.now()}`,
+      id: `bot-${Date.now()}`,
       text: '',
       sender: 'bot',
       createdAt: new Date(),
     };
-    setMessages(prev => [...prev, botMessagePlaceholder]);
 
+    setMessages(prev => [...prev, userMessage, botMessagePlaceholder]);
 
     try {
-      if (isNewChat) {
-        const newChatRef = doc(collection(db, `users/${user.uid}/chats`));
-        await setDoc(newChatRef, {
-          title: text.substring(0, 40) + (text.length > 40 ? '...' : ''),
-          createdAt: serverTimestamp(),
-          userId: user.uid,
-        });
-        currentChatId = newChatRef.id;
-        isNewChat = false; // No longer a new chat
-        window.history.replaceState(null, '', `/assistant/${currentChatId}`);
-      }
-
-      // Add user message to DB
-      const userMessageForDb = { text, sender: 'user', createdAt: serverTimestamp() };
-      await addDoc(collection(db, `users/${user.uid}/chats/${currentChatId}/messages`), userMessageForDb);
-      
       let finalBotMessageText = '';
+      // Use the async generator directly
       const stream = aiHealthAssistant({ query: text, language });
+
       for await (const chunk of stream) {
         if (chunk.response) {
             finalBotMessageText += chunk.response;
@@ -135,23 +91,12 @@ export default function AssistantChatPage() {
         }
       }
 
-      const finalBotMessageForDb = {
-        text: finalBotMessageText,
-        sender: 'bot',
-        createdAt: serverTimestamp(),
-      };
-      await addDoc(collection(db, `users/${user.uid}/chats/${currentChatId}/messages`), finalBotMessageForDb);
-      
-      // Remove local messages after DB is updated
-      setMessages(prev => prev.filter(m => !m.id.startsWith('local-')));
-      await fetchMessages(); // Refetch to get real IDs and timestamps
-
     } catch (error) {
         console.error("Error in handleSendMessage:", error);
         toast({
             variant: "destructive",
-            title: getTranslation({en: "Error", am: "ስህተት", om: "Dogoggora"}),
-            description: getTranslation(translations.errorEncountered)
+            title: getTranslation(translations.errorEncountered.title),
+            description: getTranslation(translations.errorEncountered.description)
         });
         // Remove optimistic messages on error
         setMessages(prev => prev.filter(m => m.id !== userMessage.id && m.id !== botMessagePlaceholder.id));
@@ -162,18 +107,18 @@ export default function AssistantChatPage() {
 
   const MainContent = useMemo(() => {
     if (!user) return null;
-    const translations = {
-      welcomeTitle: { en: `Good Morning, ${user?.displayName || 'there'}`, am: `እንደምን አደሩ, ${user?.displayName || 'user'}`, om: `Akkam Bulte, ${user?.displayName || 'user'}`},
-      welcomeSubtitle: {en: 'How can I help you today?', am: 'ዛሬ እንዴት ልረዳዎት እችላለሁ?', om: 'Har\'a akkamittiin si gargaaruu danda\'a?'},
+    const welcome = {
+      title: { en: `Good Morning, ${user?.displayName || 'there'}`, am: `እንደምን አደሩ, ${user?.displayName || 'user'}`, om: `Akkam Bulte, ${user?.displayName || 'user'}`},
+      subtitle: {en: 'How can I help you today?', am: 'ዛሬ እንዴት ልረዳዎት እችላለሁ?', om: 'Har\'a akkamittiin si gargaaruu danda\'a?'},
     };
 
     return (
       <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col items-center justify-center p-4 text-center">
           <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
           <h1 className="text-3xl md:text-4xl font-headline text-foreground mb-2">
-              {getTranslation(translations.welcomeTitle)}
+              {getTranslation(welcome.title)}
           </h1>
-          <p className="text-muted-foreground mb-12">{getTranslation(translations.welcomeSubtitle)}</p>
+          <p className="text-muted-foreground mb-12">{getTranslation(welcome.subtitle)}</p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
               {commonQuestions.map((q, i) => {
@@ -192,9 +137,11 @@ export default function AssistantChatPage() {
 
   const translations = useMemo(() => ({
     askMeAnythingPlaceholder: { en: 'Type a message...', am: 'መልዕክት ይተይቡ...', om: 'Ergaa barreessi...' },
-    errorEncountered: { en: 'Sorry, I encountered an error. Please try again.', am: 'ይቅርታ፣ ስህተት አጋጥሞኛል። እባክዎ እንደገና ይሞክሩ።', om: 'Dhiifama, dogoggoraatu mudate. Irra deebi\'ii yaali.' },
+    errorEncountered: { 
+        title: { en: "Error", am: "ስህተት", om: "Dogoggora"},
+        description: { en: 'Sorry, I encountered an error. Please try again.', am: 'ይቅርታ፣ ስህተት አጋጥሞኛል። እባክዎ እንደገና ይሞክሩ።', om: 'Dhiifama, dogoggoraatu mudate. Irra deebi\'ii yaali.' }
+    },
     thinking: { en: 'Thinking...', am: 'እያሰበ ነው...', om: 'Yaadaa jira...' },
-    citations: { en: 'Citations:', am: 'ማጣቀሻዎች፡', om: 'Wabiiwwan:' },
   }), [language]);
 
   useEffect(() => {
@@ -204,12 +151,27 @@ export default function AssistantChatPage() {
   }, [messages, isLoading]);
 
   return (
-    <div className="relative w-full h-screen flex flex-col">
+    <div className="relative w-full h-screen flex flex-col bg-background">
+       <header className="sticky top-0 z-10 flex items-center gap-4 border-b bg-background px-4 py-3 md:px-6">
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={() => router.back()}>
+          <ArrowLeft className="h-6 w-6" />
+        </Button>
+        <div className="flex items-center gap-3">
+          <Avatar className="h-9 w-9 border-2 border-primary">
+            <AvatarFallback className="bg-primary text-primary-foreground">
+              <Sparkles className="h-5 w-5" />
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-semibold">IDA Assistant</p>
+            <span className="text-xs text-muted-foreground">Online</span>
+          </div>
+        </div>
+      </header>
+
       <ScrollArea className="flex-1" viewportRef={viewportRef}>
           <div className="p-4 md:p-6 pb-24">
-            {messagesLoading && chatId !== 'new' ? 
-              <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div> :
-              (!messages || messages.length === 0) ? <div className='flex items-center justify-center h-full min-h-[calc(100vh-200px)]'>{MainContent}</div> :
+            {messages.length === 0 ? <div className='flex items-center justify-center h-full min-h-[calc(100vh-250px)]'>{MainContent}</div> :
             <div className="space-y-8 max-w-4xl mx-auto">
                 {messages.map((message) => (
                     <div
@@ -222,11 +184,11 @@ export default function AssistantChatPage() {
                         </Avatar>
                     )}
                     
-                    <div className={cn("max-w-[75%] rounded-2xl p-3 text-sm", 
-                        message.sender === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'
+                    <div className={cn("max-w-[85%] rounded-2xl p-3 text-sm shadow-md", 
+                        message.sender === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-card border rounded-bl-none'
                     )}>
-                       {message.id.startsWith('local-bot') && message.text.length === 0 ? (
-                            <div className="flex items-center text-sm">
+                       {message.sender === 'bot' && message.text.length === 0 && isLoading ? (
+                            <div className="flex items-center text-sm text-muted-foreground">
                                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
                                 {getTranslation(translations.thinking)}
                             </div>
@@ -242,12 +204,25 @@ export default function AssistantChatPage() {
                     )}
                     </div>
                 ))}
+                {isLoading && messages[messages.length - 1]?.sender === 'user' && (
+                   <div className='flex items-start gap-4 w-full'>
+                      <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
+                          <AvatarFallback><Sparkles className="h-5 w-5"/></AvatarFallback>
+                      </Avatar>
+                      <div className={cn("max-w-[85%] rounded-2xl p-3 text-sm shadow-md", 'bg-card border rounded-bl-none')}>
+                          <div className="flex items-center text-sm text-muted-foreground">
+                              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                              {getTranslation(translations.thinking)}
+                          </div>
+                      </div>
+                   </div>
+                )}
             </div>
             }
           </div>
       </ScrollArea>
 
-      <footer className="fixed bottom-0 left-0 w-full p-4 bg-background/80 backdrop-blur-sm border-t pb-20">
+      <footer className="fixed bottom-16 md:bottom-0 left-0 w-full p-4 bg-background/80 backdrop-blur-sm border-t">
         <div className="max-w-4xl mx-auto">
             <div className="relative rounded-xl border bg-muted focus-within:ring-2 focus-within:ring-ring">
             <Textarea

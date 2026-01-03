@@ -23,20 +23,21 @@ type NavItem = {
 
 export const PillNav = ({ items }: { items: NavItem[] }) => {
   const { getTranslation } = useLanguage();
-  const activeHref = usePathname();
+  const pathname = usePathname();
   
   const translatedItems = useMemo(() => items.map(item => ({...item, label: getTranslation(item.label) })), [items, getTranslation]);
 
-  useEffect(() => {
-    // This is a workaround to trigger a re-render when the language changes.
-  }, [getTranslation]);
+  // Hide nav on chat page for better UX
+  if (pathname.startsWith('/assistant/')) {
+    return null;
+  }
 
   return (
     <nav className="pill-nav-container">
       <ul className="pill-list" role="menubar">
         {translatedItems.map((item) => {
           const Icon = navIcons[item.href];
-          const isActive = activeHref === item.href;
+          const isActive = pathname === item.href || (item.href === '/assistant' && pathname.startsWith('/assistant'));
           return (
             <li key={item.href} role="none" className="pill-item-wrapper">
               <Link
