@@ -144,7 +144,7 @@ export default function LocatePharmacyPage() {
     locationSetSuccess: {en: 'Location set!', am: 'አካባቢ ተቀናብሯል!', om: 'Bakki qindaa\'eera!'},
     submit: {en: 'Submit', am: 'አስገባ', om: 'Galchi'},
     locationErrorTitle: {en: 'Location Error', am: 'የአካባቢ ስህተት', om: 'Dogoggora Bakkaa'},
-    locationErrorDesc: {en: 'Could not get your location. Please ensure location services are enabled.', am: 'አካባቢዎን ማግኘት አልተቻለም። እባክዎ የአካባቢ አገልግሎቶች መንቃታቸውን ያረጋгጡ።', om: 'Iddoo kee argachuu hin dandeenye. Maaloo tajaajilli iddoo argachuu akka banametti mirkaneessi.'},
+    locationErrorDesc: {en: 'Could not get your location. Please ensure location services are enabled.', am: 'አካባቢዎን ማግኘት አልተቻለም። እባክዎ የአካባቢ አገልግሎቶች መንቃታቸውን ያረጋግጡ።', om: 'Iddoo kee argachuu hin dandeenye. Maaloo tajaajilli iddoo argachuu akka banametti mirkaneessi.'},
     locationNotSupported: {en: 'Geolocation is not supported by this browser.', am: 'ጂኦሎኬሽን በዚህ አሳሽ አይደገፍም።', om: 'Geelookeeshiniin biraawzariin kun hin deeggaru.'},
     validationError: {en: 'Validation Error', am: 'የማረጋገጫ ስህተት', om: 'Dogoggora Mirkaneessuu'},
     nameRequired: {en: 'Pharmacy name is required.', am: 'የፋርማሲ ስም ያስፈልጋል።', om: 'Maqaan faarmaasii barbaachisaadha.'},
@@ -161,31 +161,31 @@ export default function LocatePharmacyPage() {
             <p className="text-muted-foreground text-sm md:text-base">{getTranslation(translations.subtitle)}</p>
         </div>
         
-        <div className="mt-4 space-y-3">
-            <div className="relative">
+        <div className="mt-4 md:flex md:gap-4 md:items-center space-y-3 md:space-y-0">
+            <div className="relative flex-1">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
                     placeholder={getTranslation(translations.searchPlaceholder)}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-10"
+                    className="pl-10 pr-10 md:text-sm"
                 />
                 <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8">
                    <Search className="h-5 w-5 text-muted-foreground" />
                 </Button>
             </div>
             
-            <Button variant="outline" className="w-full gap-2" onClick={handleFlyToUserLocation} disabled={isLoadingLocation}>
+            <Button variant="outline" className="w-full md:w-auto gap-2" onClick={handleFlyToUserLocation} disabled={isLoadingLocation}>
                 {isLoadingLocation ? (
                     <Loader2 className="h-5 w-5 animate-spin"/>
                 ) : (
                     <LocateFixed className="h-5 w-5" />
                 )}
-                <span>{getTranslation(translations.currentLocationBtn)}</span>
+                <span className="text-sm">{getTranslation(translations.currentLocationBtn)}</span>
             </Button>
         </div>
         <div className='mt-6'>
-            <h2 className="text-sm font-semibold text-muted-foreground mb-2 px-2">{getTranslation(translations.sponsored)}</h2>
+            <h2 className="text-sm font-semibold text-muted-foreground mb-2 px-1">{getTranslation(translations.sponsored)}</h2>
             <SponsoredCarousel />
         </div>
       </header>
