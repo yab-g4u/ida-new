@@ -39,15 +39,6 @@ const formSchema = z.object({
 
 type QrInfo = z.infer<typeof formSchema>;
 
-const dummyQrData = JSON.stringify({
-  N: "John Doe",
-  B: "O+",
-  A: "Peanuts",
-  M: "Lisinopril",
-  C: "Hypertension"
-});
-
-
 export default function MyQrInfoPage() {
   const { getTranslation } = useLanguage();
   const { user } = useAuth();
@@ -62,15 +53,15 @@ export default function MyQrInfoPage() {
   const form = useForm<QrInfo>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: user?.displayName || 'John Doe',
-      bloodType: 'O+',
-      allergies: 'Peanuts',
-      prescriptions: 'Lisinopril',
-      medicalNotes: 'Hypertension',
-      emergencyContact: { name: 'Jane Doe', phone: '123-456-7890' },
+      name: user?.displayName || '',
+      bloodType: '',
+      allergies: '',
+      prescriptions: '',
+      medicalNotes: '',
+      emergencyContact: { name: '', phone: '' },
       pdfUrl: '',
       pdfFileName: '',
-      qrData: dummyQrData,
+      qrData: '',
     },
   });
   
@@ -121,19 +112,16 @@ export default function MyQrInfoPage() {
       (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data() as QrInfo;
-           if (!data.qrData) {
-            data.qrData = dummyQrData;
-          }
           form.reset(data);
         } else {
            form.reset({
-            name: user.displayName || 'John Doe',
-            bloodType: 'O+',
-            allergies: 'Peanuts',
-            prescriptions: 'Lisinopril',
-            medicalNotes: 'Hypertension',
-            emergencyContact: { name: 'Jane Doe', phone: '123-456-7890' },
-            qrData: dummyQrData,
+            name: user.displayName || '',
+            bloodType: '',
+            allergies: '',
+            prescriptions: '',
+            medicalNotes: '',
+            emergencyContact: { name: '', phone: '' },
+            qrData: '',
           });
         }
         setIsLoading(false);
