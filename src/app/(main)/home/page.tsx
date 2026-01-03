@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Search, MapPin, QrCode, ChevronRight, User, Settings, ShieldCheck, BrainCircuit, Clock, HeartPulse, Siren, Phone, Mail } from 'lucide-react';
+import { Search, MapPin, QrCode, ChevronRight, User, Settings, ShieldCheck, BrainCircuit, Clock, HeartPulse, Siren, Phone, Mail, LogOut, Languages } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-provider';
 import { useLanguage } from '@/hooks/use-language';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -20,6 +20,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -35,6 +43,7 @@ import { useToast } from '@/hooks/use-toast';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Loader2 } from 'lucide-react';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 const featureCards = [
     { 
@@ -108,7 +117,7 @@ type EmergencyContact = {
 }
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const db = useFirestore();
   const { getTranslation, language } = useLanguage();
   const { toast } = useToast();
@@ -137,6 +146,10 @@ export default function HomePage() {
     save: {en: "Save", am: "አስቀምጥ", om: "Olkaa'i"},
     contactSaved: {en: "Emergency contact saved.", am: "የድንገተኛ ጊዜ እውቂያ ተቀምጧል።", om: "Quunnamtiin hatattamaa galmaa'eera."},
     contactError: {en: "Failed to save contact.", am: "እውቂያን ማስቀመጥ አልተቻለም።", om: "Quunnamtii olkaa'uun hin danda'amne."},
+    validationError: {en: "Validation Error", am: "የማረጋገጫ ስህተት", om: "Dogoggora Mirkaneessuu"},
+    validationErrorDesc: {en: "Please fill out a valid name and phone number.", am: "እባክዎ ትክክለኛ ስም እና ስልክ ቁጥር ይሙሉ።", om: "Maaloo maqaa sirrii fi lakkoofsa bilbilaa galchaa."},
+    profile: {en: "Profile", am: "መገለጫ", om: "Piroofaayilii"},
+    signOut: {en: "Sign Out", am: "ውጣ", om: "Bahi"},
   }), [language]);
 
   useEffect(() => {
@@ -186,10 +199,15 @@ export default function HomePage() {
 
   const handleSaveContact = async () => {
     if (!user?.uid || !db) return;
-    if (!tempContact.name || !tempContact.phone) {
-        toast({variant: 'destructive', title: 'Validation Error', description: 'Please fill out both fields.'});
+    
+    const isPhoneValid = /^\+?[0-9\s-]{7,15}$/.test(tempContact.phone);
+    const isNameValid = tempContact.name.trim().length > 1;
+
+    if (!isNameValid || !isPhoneValid) {
+        toast({variant: 'destructive', title: translations.validationError[language as keyof typeof translations.validationError], description: translations.validationErrorDesc[language as keyof typeof translations.validationErrorDesc]});
         return;
     }
+    
     setIsSaving(true);
     const docRef = doc(db, 'qr-info', user.uid);
     try {
@@ -280,9 +298,23 @@ export default function HomePage() {
                     <p className="text-sm text-muted-foreground">{welcomeSubtitle}</p>
                 </div>
                 <div className="flex items-center gap-1">
-                    <button className="p-2 rounded-full hover:bg-muted">
-                        <User className="w-6 h-6" />
-                    </button>
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="rounded-full">
+                                <User className="w-6 h-6" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>{user?.displayName || 'User'}</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem asChild><Link href="/my-qr-info" className="w-full flex items-center gap-2"><User />{translations.profile[language as keyof typeof translations.profile]}</Link></DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={signOut} className="flex items-center gap-2 text-destructive focus:text-destructive">
+                                <LogOut /> {translations.signOut[language as keyof typeof translations.signOut]}
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <LanguageSwitcher />
                     <ThemeToggle />
                 </div>
             </div>
