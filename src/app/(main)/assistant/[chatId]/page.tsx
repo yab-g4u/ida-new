@@ -16,6 +16,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { collection, addDoc, serverTimestamp, query, orderBy, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { Card } from '@/components/ui/card';
 import Link from 'next/link';
+import { FormattedResponse } from '@/components/formatted-response';
 
 interface Message {
   id: string;
@@ -236,9 +237,11 @@ export default function AssistantChatPage() {
                     <div className={cn("max-w-[75%] rounded-2xl p-3 text-sm", 
                         message.sender === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'
                     )}>
-                        <div className="whitespace-pre-wrap">
-                            {message.text}
-                        </div>
+                        {message.sender === 'bot' ? (
+                          <FormattedResponse text={message.text} />
+                        ) : (
+                          <div className="whitespace-pre-wrap">{message.text}</div>
+                        )}
                         {message.citations && (
                             <Alert className="mt-4 bg-background/50 border-accent text-xs">
                                 <BookText className="h-4 w-4"/>
@@ -302,5 +305,3 @@ export default function AssistantChatPage() {
     </div>
   );
 }
-
-    
