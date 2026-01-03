@@ -58,8 +58,8 @@ export default function ScanMedicinePage() {
 
   const processImage = async (dataUri: string) => {
     setIsProcessing(true);
-    // Simulate a short processing time for the demo
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Simulate a longer processing time for the demo
+    await new Promise(resolve => setTimeout(resolve, 8000));
     
     // For the demo, we will always return the hardcoded result
     setVerificationStatus('verified');
