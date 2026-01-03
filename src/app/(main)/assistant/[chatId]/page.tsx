@@ -48,6 +48,7 @@ export default function AssistantChatPage() {
   const { data: messages, loading: messagesLoading } = useCollection(messagesQuery);
 
   const MainContent = useMemo(() => {
+    if (!user) return null; // Prevent rendering if user is not loaded
     const translations = {
       welcomeTitle: { en: `Good Morning, ${user?.displayName || 'there'}`, am: `እንደምን አደሩ, ${user?.displayName || 'user'}`, om: `Akkam Bulte, ${user?.displayName || 'user'}`},
       welcomeSubtitle: {en: 'How can I help you today?', am: 'ዛሬ እንዴት ልረዳዎት እችላለሁ?', om: 'Har\'a akkamittiin si gargaaruu danda\'a?'},
@@ -169,7 +170,7 @@ export default function AssistantChatPage() {
           <div className="p-4 md:p-6 h-full">
             {messagesLoading && chatId !== 'new' ? 
               <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div> :
-              (!messages || messages.length === 0) ? <div className='flex items-center justify-center h-full'><MainContent /></div> :
+              (!messages || messages.length === 0) ? <div className='flex items-center justify-center h-full'>{MainContent}</div> :
             <div className="space-y-8 pb-24 max-w-4xl mx-auto">
                 {(messages as Message[]).map((message) => (
                     <div
@@ -250,3 +251,5 @@ export default function AssistantChatPage() {
     </div>
   );
 }
+
+    
