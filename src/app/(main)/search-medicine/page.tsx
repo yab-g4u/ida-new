@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useLanguage } from '@/hooks/use-language';
+import { useLanguage, type Language } from '@/hooks/use-language';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,14 +9,24 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Search, X, Pill, Info, ShieldAlert } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getDrugData, searchDrugs, type Drug } from '@/lib/drug-data';
+import { translateText } from '@/ai/flows/translate-text';
+
+type TranslatedContent = {
+    classes: string;
+    usage: string;
+    side_effects: string;
+    contraindications: string;
+}
 
 export default function SearchMedicinePage() {
-  const { getTranslation } = useLanguage();
+  const { getTranslation, language } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [searchResults, setSearchResults] = useState<Drug[]>([]);
   const [selectedDrug, setSelectedDrug] = useState<Drug | null>(null);
+  const [translatedContent, setTranslatedContent] = useState<TranslatedContent | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
   
   useEffect(() => {
     async function loadData() {
@@ -29,7 +39,7 @@ export default function SearchMedicinePage() {
   const handleSearch = (term: string) => {
     if (isDataLoading || term.length < 2) {
       setSearchResults([]);
-      if(selectedDrug) setSelectedDrug(null);
+      if(selectedDrug) handleClearSearch();
       return;
     }
     setIsSearching(true);
@@ -54,7 +64,49 @@ export default function SearchMedicinePage() {
     setSearchTerm('');
     setSearchResults([]);
     setSelectedDrug(null);
+    setTranslatedContent(null);
   };
+
+  useEffect(() => {
+    if (selectedDrug && language !== 'en') {
+      const translateContent = async () => {
+        setIsTranslating(true);
+        try {
+          const [classes, usage, side_effects, contraindications] = await Promise.all([
+            translateText({ text: selectedDrug.classes, targetLanguage: language }),
+            translateText({ text: selectedDrug.usage, targetLanguage: language }),
+            translateText({ text: selectedDrug.side_effects, targetLanguage: language }),
+            translateText({ text: selectedDrug.contraindications, targetLanguage: language }),
+          ]);
+          setTranslatedContent({
+            classes: classes.translatedText,
+            usage: usage.translatedText,
+            side_effects: side_effects.translatedText,
+            contraindications: contraindications.translatedText,
+          });
+        } catch (error) {
+          console.error("Translation failed:", error);
+          // Fallback to English if translation fails
+          setTranslatedContent({
+            classes: selectedDrug.classes,
+            usage: selectedDrug.usage,
+            side_effects: selectedDrug.side_effects,
+            contraindications: selectedDrug.contraindications,
+          });
+        } finally {
+          setIsTranslating(false);
+        }
+      };
+      translateContent();
+    } else if (selectedDrug) {
+      setTranslatedContent({
+        classes: selectedDrug.classes,
+        usage: selectedDrug.usage,
+        side_effects: selectedDrug.side_effects,
+        contraindications: selectedDrug.contraindications,
+      });
+    }
+  }, [selectedDrug, language]);
 
   const translations = useMemo(() => ({
     title: { en: 'Search Medicine', am: 'መድሃኒት ይፈልጉ', om: 'Qoricha Barbaadi' },
@@ -69,7 +121,8 @@ export default function SearchMedicinePage() {
     contraindications: {en: 'Contraindications', am: 'የማይወሰድባቸው ሁኔታዎች', om: 'Haalawwan Hin Fudhatamne'},
     noResults: {en: 'No results found for', am: 'ምንም ውጤት አልተገኘም ለ', om: 'Bu\'aan argame hin jiru'},
     searchResults: {en: 'Search Results', am: 'የፍለጋ ውጤቶች', om: 'Bu\'aawwan Barbaacha'},
-  }), [getTranslation]);
+    translating: {en: 'Translating...', am: 'በመተርጎም ላይ...', om: 'Hiikamaa jira...'},
+  }), [language]);
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -139,10 +192,19 @@ export default function SearchMedicinePage() {
             <CardDescription>{getTranslation(translations.genericName)}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <InfoSection title={getTranslation(translations.drugClasses)} content={selectedDrug.classes} icon={Pill} />
-            <InfoSection title={getTranslation(translations.usage)} content={selectedDrug.usage} icon={Info} />
-            <InfoSection title={getTranslation(translations.sideEffects)} content={selectedDrug.side_effects} icon={ShieldAlert} />
-            <InfoSection title={getTranslation(translations.contraindications)} content={selectedDrug.contraindications} icon={XCircle} />
+            {isTranslating ? (
+              <div className="flex items-center justify-center gap-2 text-muted-foreground py-8">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>{getTranslation(translations.translating)}</span>
+              </div>
+            ) : translatedContent ? (
+              <>
+                <InfoSection title={getTranslation(translations.drugClasses)} content={translatedContent.classes} icon={Pill} />
+                <InfoSection title={getTranslation(translations.usage)} content={translatedContent.usage} icon={Info} />
+                <InfoSection title={getTranslation(translations.sideEffects)} content={translatedContent.side_effects} icon={ShieldAlert} />
+                <InfoSection title={getTranslation(translations.contraindications)} content={translatedContent.contraindications} icon={XCircle} />
+              </>
+            ) : null}
           </CardContent>
         </Card>
       )}

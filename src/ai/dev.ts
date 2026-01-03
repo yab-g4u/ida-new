@@ -8,3 +8,4 @@ import '@/ai/flows/voice-input-medication-queries.ts';
 import '@/ai/flows/analyze-medicine-package.ts';
 import '@/ai/flows/medicine-search-chatbot.ts';
 import '@/ai/flows/summarize-medical-info.ts';
+import '@/ai/flows/translate-text.ts';
