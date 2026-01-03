@@ -31,6 +31,7 @@ const prompt = ai.definePrompt({
   name: 'aiHealthAssistantPrompt',
   input: {schema: AiHealthAssistantInputSchema},
   output: {schema: AiHealthAssistantOutputSchema},
+  model: 'googleai/gemini-2.5-flash',
   prompt: `You are a helpful AI health assistant that provides real-time, grounded information in the user's preferred language.
   Your responses must be empathetic, professional, and use language suitable for the general public.
   All answers must be based on up-to-date, verifiable sources, and you must provide citations where applicable.
