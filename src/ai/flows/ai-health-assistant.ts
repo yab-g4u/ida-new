@@ -10,7 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-import { streamFlow } from '@genkit-ai/next';
+import { streamFlow } from '@genkit-ai/next/server';
 
 const AiHealthAssistantInputSchema = z.object({
   query: z.string().describe('The user query related to health.'),
@@ -28,39 +28,6 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
   return streamFlow(aiHealthAssistantStream, input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'aiHealthAssistantPrompt',
-  input: {schema: AiHealthAssistantInputSchema},
-  prompt: `You are a helpful AI health assistant that provides real-time, grounded information in the user's preferred language.
-  Your responses must be empathetic, professional, and use language suitable for the general public.
-  All answers must be based on up-to-date, verifiable sources, and you must provide citations where applicable.
-
-  User Query: {{{query}}}
-  Language: {{{language}}}
-  `,
-  tools: [],
-  config: {
-    safetySettings: [
-      {
-        category: 'HARM_CATEGORY_HATE_SPEECH',
-        threshold: 'BLOCK_ONLY_HIGH',
-      },
-      {
-        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_HARASSMENT',
-        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-      },
-      {
-        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-        threshold: 'BLOCK_LOW_AND_ABOVE',
-      },
-    ],
-  },
-});
-
 const aiHealthAssistantStream = ai.defineFlow(
   {
     name: 'aiHealthAssistantStream',
@@ -69,7 +36,7 @@ const aiHealthAssistantStream = ai.defineFlow(
   },
   async (input, streamingCallback) => {
     const {stream, response} = ai.generateStream({
-        model: 'googleai/gemini-2.5-flash',
+        model: 'openai/gpt-4o',
         prompt: {
             text: `You are a helpful AI health assistant that provides real-time, grounded information in the user's preferred language.
   Your responses must be empathetic, professional, and use language suitable for the general public.
@@ -79,26 +46,7 @@ const aiHealthAssistantStream = ai.defineFlow(
   Language: ${input.language}`
         },
         tools: [],
-        config: {
-            safetySettings: [
-              {
-                category: 'HARM_CATEGORY_HATE_SPEECH',
-                threshold: 'BLOCK_ONLY_HIGH',
-              },
-              {
-                category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-                threshold: 'BLOCK_NONE',
-              },
-              {
-                category: 'HARM_CATEGORY_HARASSMENT',
-                threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-              },
-              {
-                category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-                threshold: 'BLOCK_LOW_AND_ABOVE',
-              },
-            ],
-        }
+        config: {}
     });
 
     for await (const chunk of stream) {
