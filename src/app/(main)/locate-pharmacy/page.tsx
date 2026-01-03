@@ -148,7 +148,7 @@ export default function LocatePharmacyPage() {
     locationNotSupported: {en: 'Geolocation is not supported by this browser.', am: 'ጂኦሎኬሽን በዚህ አሳሽ አይደገፍም።', om: 'Geelookeeshiniin biraawzariin kun hin deeggaru.'},
     validationError: {en: 'Validation Error', am: 'የማረጋገጫ ስህተት', om: 'Dogoggora Mirkaneessuu'},
     nameRequired: {en: 'Pharmacy name is required.', am: 'የፋርማሲ ስም ያስፈልጋል።', om: 'Maqaan faarmaasii barbaachisaadha.'},
-    locationRequired: {en: 'Pharmacy location is required.', am: 'የፋርማሲው ቦታ ያስፈልጋል።', om: 'Bakki faarmaasii barbaachisaadha.'},
+    locationRequired: {en: 'Pharmacy location is required.', am: 'የፋርマሲው ቦታ ያስፈልጋል።', om: 'Bakki faarmaasii barbaachisaadha.'},
     addSuccessTitle: {en: 'Pharmacy Added!', am: 'ፋርማሲ ተጨምሯል!', om: 'Faarmaasiin dabalameera!'},
     addedByCommunity: {en: 'Added by community', am: 'በማህበረሰብ የተጨመረ', om: 'Hawaasaan Dabalame'},
   }), [language]);
@@ -200,7 +200,7 @@ export default function LocatePharmacyPage() {
         )}
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTrigger asChild>
-                 <Button variant="default" size="icon" className="absolute bottom-24 right-4 rounded-full w-14 h-14 shadow-lg z-10">
+                 <Button variant="default" size="icon" className="absolute bottom-24 right-4 rounded-full w-14 h-14 shadow-lg z-50">
                     <Plus className="w-6 h-6"/>
                 </Button>
             </SheetTrigger>
