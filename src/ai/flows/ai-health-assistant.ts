@@ -2,57 +2,61 @@
 
 /**
  * @fileOverview A conversational AI health assistant that provides real-time, grounded information in Amharic, Oromo, and English.
- *
- * - aiHealthAssistant - A function that handles the health assistant process.
- * - AiHealthAssistantInput - The input type for the aiHealthAssistant function.
- * - AiHealthAssistantOutput - The return type for the aiHealthAssistant function.
+ * This is a mock implementation that uses a local FAQ library for demo purposes.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'zod';
-import { streamFlow } from '@genkit-ai/next/server';
+import { faqData, type FaqItem } from '@/lib/faq-data';
 
-const AiHealthAssistantInputSchema = z.object({
-  query: z.string().describe('The user query related to health.'),
-  language: z.enum(['am', 'om', 'en']).describe('The preferred language of the user (Amharic, Oromo, or English).'),
-});
-type AiHealthAssistantInput = z.infer<typeof AiHealthAssistantInputSchema>;
+interface AiHealthAssistantInput {
+  query: string;
+  language: 'en' | 'am' | 'om';
+}
 
-export async function aiHealthAssistant(input: AiHealthAssistantInput) {
-  const {stream, response} = ai.generateStream({
-      model: 'openai/gpt-4o',
-      prompt: {
-          text: `You are a helpful AI health assistant that provides real-time, grounded information in the user's preferred language.
-Your responses must be empathetic, professional, and use language suitable for the general public.
-All answers must be based on up-to-date, verifiable sources, and you must provide citations where applicable.
+function findAnswer(query: string, language: 'en' | 'am' | 'om'): string | null {
+  const lowerCaseQuery = query.toLowerCase().trim();
+  
+  for (const item of faqData) {
+    const question = item.q[language]?.toLowerCase();
+    if (question && question.includes(lowerCaseQuery)) {
+      return item.a[language];
+    }
+  }
 
-User Query: ${input.query}
-Language: ${input.language}`
-      },
-      tools: [],
-      config: {}
-  });
+  // Check for greetings or simple phrases
+  const directMatch = faqData.find(item => item.q[language]?.toLowerCase() === lowerCaseQuery);
+  if (directMatch) {
+    return directMatch.a[language];
+  }
 
-  const reader = stream.getReader();
-  const newStream = new ReadableStream({
+  return null;
+}
+
+export async function aiHealthAssistant(input: AiHealthAssistantInput): Promise<ReadableStream<string>> {
+  const { query, language } = input;
+
+  let answer = findAnswer(query, language);
+
+  if (!answer) {
+    const fallbackAnswers = {
+        en: "I'm sorry, I can only answer a few questions for this demo. Please try one of the suggestions.",
+        am: "ይቅርታ፣ ለዚህ ማሳያ ጥቂት ጥያቄዎችን ብቻ መመለስ እችላለሁ። እባክዎ ከቀረቡት አማራጮች ውስጥ አንዱን ይሞክሩ። (Yik’irita, lezzi masaya t’ik’it k’it’ak’ewochini bicha memeles ichilalehu. Ibakiwo ke k’erebuti amirach’ochi wisit’i anduni yimokiru.)",
+        om: "Dhiifama, agarsiisa kanaaf gaaffiiwwan muraasa qofa deebisuun danda'a. Maaloo yaada dhiyaate keessaa tokko yaali.",
+    };
+    answer = fallbackAnswers[language];
+  }
+
+  // Simulate a streaming response
+  const stream = new ReadableStream({
     async start(controller) {
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            break;
-          }
-          if (value.text) {
-            controller.enqueue(value.text);
-          }
-        }
-      } catch (e) {
-        controller.error(e);
-      } finally {
-        controller.close();
+      const chunks = answer!.split(' ');
+      for (const chunk of chunks) {
+        // Add a small delay to simulate typing
+        await new Promise(resolve => setTimeout(resolve, 50));
+        controller.enqueue(chunk + ' ');
       }
+      controller.close();
     },
   });
 
-  return newStream;
+  return stream;
 }
