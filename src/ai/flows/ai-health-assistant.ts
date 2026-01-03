@@ -18,44 +18,41 @@ const AiHealthAssistantInputSchema = z.object({
 });
 type AiHealthAssistantInput = z.infer<typeof AiHealthAssistantInputSchema>;
 
-const AiHealthAssistantOutputSchema = z.object({
-  response: z.string().describe('The AI assistant response to the user query.'),
-  citations: z.string().optional().describe('Citations for the grounded information.'),
-});
-type AiHealthAssistantOutput = z.infer<typeof AiHealthAssistantOutputSchema>;
-
 export async function aiHealthAssistant(input: AiHealthAssistantInput) {
-  return streamFlow(aiHealthAssistantStream, input);
-}
+  const {stream, response} = ai.generateStream({
+      model: 'openai/gpt-4o',
+      prompt: {
+          text: `You are a helpful AI health assistant that provides real-time, grounded information in the user's preferred language.
+Your responses must be empathetic, professional, and use language suitable for the general public.
+All answers must be based on up-to-date, verifiable sources, and you must provide citations where applicable.
 
-const aiHealthAssistantStream = ai.defineFlow(
-  {
-    name: 'aiHealthAssistantStream',
-    inputSchema: AiHealthAssistantInputSchema,
-    outputSchema: z.string(),
-  },
-  async (input, streamingCallback) => {
-    const {stream, response} = ai.generateStream({
-        model: 'openai/gpt-4o',
-        prompt: {
-            text: `You are a helpful AI health assistant that provides real-time, grounded information in the user's preferred language.
-  Your responses must be empathetic, professional, and use language suitable for the general public.
-  All answers must be based on up-to-date, verifiable sources, and you must provide citations where applicable.
+User Query: ${input.query}
+Language: ${input.language}`
+      },
+      tools: [],
+      config: {}
+  });
 
-  User Query: ${input.query}
-  Language: ${input.language}`
-        },
-        tools: [],
-        config: {}
-    });
-
-    for await (const chunk of stream) {
-        if(chunk.text) {
-            streamingCallback(chunk.text);
+  const reader = stream.getReader();
+  const newStream = new ReadableStream({
+    async start(controller) {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+          if (value.text) {
+            controller.enqueue(value.text);
+          }
         }
-    }
+      } catch (e) {
+        controller.error(e);
+      } finally {
+        controller.close();
+      }
+    },
+  });
 
-    const final = await response;
-    return final.text || '';
-  }
-);
+  return newStream;
+}
