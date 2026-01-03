@@ -5,7 +5,6 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import QRCode from 'qrcode.react';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -17,8 +16,11 @@ import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, File, X, User } from 'lucide-react';
-import { getStorage } from 'firebase/storage';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Textarea } from '@/components/ui/textarea';
+import { summarizeMedicalInfo } from '@/ai/flows/summarize-medical-info';
+
+declare const Tesseract: any;
 
 const formSchema = z.object({
   name: z.string().min(2, 'Required'),
@@ -32,6 +34,7 @@ const formSchema = z.object({
   }).optional(),
   pdfUrl: z.string().url().optional(),
   pdfFileName: z.string().optional(),
+  qrData: z.string().optional(), // To store the summarized AI data
 });
 
 type QrInfo = z.infer<typeof formSchema>;
@@ -41,7 +44,6 @@ export default function MyQrInfoPage() {
   const { user } = useAuth();
   const db = useFirestore();
   const { toast } = useToast();
-  const [qrData, setQrData] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
@@ -58,7 +60,8 @@ export default function MyQrInfoPage() {
       medicalNotes: '',
       emergencyContact: { name: '', phone: '' },
       pdfUrl: '',
-      pdfFileName: ''
+      pdfFileName: '',
+      qrData: '',
     },
   });
   
@@ -74,7 +77,7 @@ export default function MyQrInfoPage() {
     prescriptionsPlaceholder: { en: 'e.g., Amoxicillin 500mg', am: 'ለምሳሌ፣ አሞክሲሲሊን 500mg', om: 'Fkn, Amoxicillin 500mg' },
     medicalNotes: {en: 'Medical Notes', am: 'የህክምና ማስታወሻዎች', om: 'Yaadannoowwan Yaalaa'},
     medicalNotesPlaceholder: {en: 'Chronic conditions, past surgeries, etc.', am: 'ሥር የሰደዱ በሽታዎች፣ ያለፉ ቀዶ ጥገናዎች፣ ወዘተ.', om: 'Dhukkuboota yeroo dheeraa, baqaqsanii yaaluu darbe, kkf.'},
-    saveBtn: { en: 'Save Information', am: 'መረጃ አስቀምጥ', om: 'Odeeffannoo Olkaa\'i' },
+    saveBtn: { en: 'Generate & Save Information', am: 'አመንጭ እና መረጃ አስቀምጥ', om: 'Uumi & Odeeffannoo Olkaa\'i' },
     qrTitle: { en: 'Your Emergency QR Code', am: 'የእርስዎ የድንገተኛ QR ኮድ', om: 'Koodii QR Ariifachiisaa Kee' },
     uploadPdf: { en: 'Upload Medical PDF', am: 'የህክምና PDF ስቀል', om: 'PDF Yaalaa Ol-Guuti' },
     uploadPdfDesc: { en: 'Upload a PDF with more medical details (optional).', am: 'ተጨማሪ የህክምና ዝርዝሮች ያለው PDF ይስቀሉ (አማራጭ)።', om: 'PDF tarreeffama yaalaa dabalataa qabu ol guuti (filannoo).' },
@@ -83,36 +86,19 @@ export default function MyQrInfoPage() {
     newFile: { en: 'New:', am: 'አዲስ፡', om: 'Haaraa:'},
     loadingError: { en: 'Failed to load your information.', am: 'የእርስዎን መረጃ መጫን አልተቻለም።', om: 'Odeeffannoo kee feesisuun hin danda\'amne.'},
     loginError: { en: 'You must be logged in to save data.', am: 'መረጃ ለማስቀመጥ መግባት አለብዎት።', om: 'Odeeffannoo olkaa\'uuf seentu galmeessuu qabda.'},
-    saveSuccess: { en: 'Your information has been saved.', am: 'የእርስዎ መረጃ ተቀምጧል።', om: 'Odeeffannoon kee olkaa\'ameera.'},
+    saveSuccess: { en: 'Your information has been summarized and saved.', am: 'የእርስዎ መረጃ ተጠቃልሎ ተቀምጧል።', om: 'Odeeffannoon kee gabaabfamee olkaa\'ameera.'},
     saveError: { en: 'Failed to save information.', am: 'መረጃ ማስቀመጥ አልተቻለም።', om: 'Odeeffannoo olkaa\'uun hin danda\'amne.'},
     invalidFile: { en: 'Please upload a PDF file.', am: 'እባክዎ የፒዲኤፍ ፋይል ይስቀሉ።', om: 'Maaloo faayilii PDF ol guutaa.'},
     pdfRemoveError: { en: 'Could not remove the PDF. Please try again.', am: 'ፒዲኤፉን ማስወገድ አልተቻለም። እባክዎ እንደገና ይሞክሩ።', om: 'PDFicha balleessuun hin danda\'amne. Irra deebi\'ii yaali.'},
-    noQrCode: { en: 'Your QR Code will appear here once you save your information.', am: 'የእርስዎ QR ኮድ መረጃዎን ካስቀመጡ በኋላ እዚህ ይታያል።', om: 'Koodiin QR kee odeeffannoo kee erga olkaa\'attee booda asitti mul\'ata.'},
+    noQrCode: { en: 'Your QR Code will appear here once you generate it.', am: 'የእርስዎ QR ኮድ ካመነጩት በኋላ እዚህ ይታያል።', om: 'Koodiin QR kee erga uumtee booda asitti mul\'ata.'},
     errorTitle: {en: "Error", am: "ስህተት", om: "Dogoggora"},
     successTitle: {en: "Success", am: "ተሳክቷል", om: "Milkaa'eera"},
     invalidFileTitle: {en: "Invalid File", am: "የማይሰራ ፋይል", om: "Faayilii Sirrii Hin Taane"},
     uniqueId: {en: "Your Unique ID", am: "የእርስዎ ልዩ መታወቂያ", om: "Eenyummaa Kee Isa Addaa"},
+    summarizing: {en: "AI is summarizing...", am: "AI በማጠቃለል ላይ ነው...", om: "AI gabaabsaa jira..."},
+    ocrError: { en: 'Failed to read text from PDF.', am: 'ከፒዲኤፍ ጽሑፍ ማንበብ አልተቻለም።', om: 'PDF irraa barreeffama dubbisuun hin danda\'amne.'},
   }), [getTranslation]);
   
-  const generateQrData = useCallback((data: Partial<QrInfo>) => {
-    if (!data.name || !data.bloodType) {
-      setQrData('');
-      return;
-    }
-    const dataForQr = {
-        name: data.name || 'N/A',
-        bloodType: data.bloodType || 'N/A',
-        allergies: data.allergies || 'None',
-        prescriptions: data.prescriptions || 'None',
-        medicalNotes: data.medicalNotes || 'None',
-        emergencyContact: data.emergencyContact?.name ? `${data.emergencyContact.name} (${data.emergencyContact.phone})` : 'None',
-        pdfUrl: data.pdfUrl || 'None',
-        userId: user?.uid
-    };
-    const dataString = JSON.stringify(dataForQr, null, 2);
-    setQrData(dataString);
-  }, [user]);
-
   useEffect(() => {
     if (!user?.uid || !db) {
         setIsLoading(false);
@@ -127,14 +113,11 @@ export default function MyQrInfoPage() {
         if (docSnap.exists()) {
           const data = docSnap.data() as QrInfo;
           form.reset(data);
-          generateQrData(data);
         } else {
-          // If no data exists in Firestore, still set the name from the user object
           form.reset({
             ...form.getValues(),
             name: user.displayName || '',
           });
-          generateQrData({ name: user.displayName || '' });
         }
         setIsLoading(false);
       },
@@ -146,7 +129,7 @@ export default function MyQrInfoPage() {
     );
     
     return () => unsubscribe();
-  }, [user, db, toast, getTranslation, translations, generateQrData, form]);
+  }, [user, db, toast, getTranslation, translations, form]);
 
 
   async function onSubmit(values: QrInfo) {
@@ -160,16 +143,38 @@ export default function MyQrInfoPage() {
     try {
       let uploadedPdfUrl = values.pdfUrl;
       let uploadedPdfName = values.pdfFileName;
+      let pdfText = '';
 
       if (fileToUpload) {
-        if (values.pdfUrl) {
+         // --- OCR Part ---
+        if (typeof Tesseract === 'undefined') {
+          toast({ variant: 'destructive', title: 'OCR Not Loaded', description: 'Tesseract.js script not found. Please refresh.' });
+          setIsSubmitting(false);
+          return;
+        }
+        try {
+            const pdfDataUri = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target?.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(fileToUpload);
+            });
+            const { data: { text } } = await Tesseract.recognize(pdfDataUri, 'eng');
+            pdfText = text;
+        } catch (ocrError) {
+             toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.ocrError), variant: 'destructive' });
+             console.error("OCR Error: ", ocrError);
+             setIsSubmitting(false);
+             return;
+        }
+        // --- End OCR Part ---
+
+        if (values.pdfUrl) { // Remove old PDF if it exists
             try {
                 const oldFileRef = ref(storage, values.pdfUrl);
                 await deleteObject(oldFileRef);
             } catch (deleteError: any) {
-                if (deleteError.code !== 'storage/object-not-found') {
-                    console.warn("Could not delete old PDF:", deleteError);
-                }
+                if (deleteError.code !== 'storage/object-not-found') console.warn("Could not delete old PDF:", deleteError);
             }
         }
 
@@ -178,16 +183,25 @@ export default function MyQrInfoPage() {
         uploadedPdfUrl = await getDownloadURL(snapshot.ref);
         uploadedPdfName = fileToUpload.name;
       }
+      
+      // --- AI Summarization ---
+      const formText = `Name: ${values.name}, Blood Type: ${values.bloodType}, Allergies: ${values.allergies}, Prescriptions: ${values.prescriptions}, Notes: ${values.medicalNotes}`;
+      const rawText = `${formText}\n\n--- PDF CONTENT ---\n${pdfText}`;
+      
+      const aiResult = await summarizeMedicalInfo({ rawText });
+      const summarizedJson = aiResult.summarizedJson;
+      // --- End AI Summarization ---
+
 
       const finalValues = {
         ...values,
         pdfUrl: uploadedPdfUrl,
         pdfFileName: uploadedPdfName,
+        qrData: summarizedJson,
       };
 
       await setDoc(docRef, finalValues, { merge: true }); 
-      generateQrData(finalValues);
-      form.reset(finalValues);
+      form.reset(finalValues); // This will update the UI with the new qrData
       setFileToUpload(null);
       toast({ title: getTranslation(translations.successTitle), description: getTranslation(translations.saveSuccess) });
     } catch (error) {
@@ -231,9 +245,12 @@ export default function MyQrInfoPage() {
         pdfUrl: '',
         pdfFileName: ''
     };
-    await onSubmit(updatedValues);
-    // No need to set isSubmitting to false here, as onSubmit does it.
+    await setDoc(doc(db!, 'qr-info', user.uid), updatedValues, { merge: true });
+    form.reset(updatedValues);
+    setIsSubmitting(false);
   }
+
+  const qrCodeValue = form.watch('qrData');
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -322,8 +339,14 @@ export default function MyQrInfoPage() {
               </FormItem>
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {getTranslation(translations.saveBtn)}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {getTranslation(translations.summarizing)}
+                  </>
+                ) : (
+                  getTranslation(translations.saveBtn)
+                )}
               </Button>
             </form>
           </Form>
@@ -334,9 +357,9 @@ export default function MyQrInfoPage() {
                       <CardTitle className="font-headline">{getTranslation(translations.qrTitle)}</CardTitle>
                   </CardHeader>
                   <CardContent className="flex justify-center items-center p-4">
-                    {qrData ? (
+                    {qrCodeValue ? (
                         <div className='bg-white p-4 rounded-lg'>
-                           <QRCode value={qrData} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} bgColor="white" fgColor="black" />
+                           <QRCode value={qrCodeValue} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} bgColor="white" fgColor="black" level="H" />
                         </div>
                     ) : (
                         <div className="w-full aspect-square bg-muted rounded-md flex items-center justify-center text-muted-foreground text-center p-4">
