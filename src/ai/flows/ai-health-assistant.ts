@@ -7,8 +7,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-export const maxDuration = 60;
-
 const AiHealthAssistantInputSchema = z.object({
   query: z.string().describe('The user question about a health topic.'),
   language: z.enum(['am', 'om', 'en']).describe('The preferred language of the user.'),
