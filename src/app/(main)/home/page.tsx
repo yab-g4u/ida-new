@@ -40,7 +40,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -123,7 +123,7 @@ export default function HomePage() {
   const { toast } = useToast();
   
   const [dailyTip, setDailyTip] = useState('');
-  const [emergencyContact, setEmergencyContact] = useState<EmergencyContact | null>(null);
+  const [hasEmergencyContact, setHasEmergencyContact] = useState(false);
   const [isContactLoading, setIsContactLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -162,44 +162,36 @@ export default function HomePage() {
   }, [language]);
 
   useEffect(() => {
-    if (!user?.uid || !db) {
-        setIsContactLoading(false);
-        return;
-    };
-
+    // For demo purposes, we use localStorage instead of a live Firestore call
+    // to prevent network-related delays.
     setIsContactLoading(true);
-    const docRef = doc(db, 'qr-info', user.uid);
-    
-    const unsubscribe = onSnapshot(docRef, 
-      (docSnap) => {
-        if (docSnap.exists() && docSnap.data().emergencyContact) {
-            setEmergencyContact(docSnap.data().emergencyContact);
-        } else {
-            setEmergencyContact(null);
-        }
-        setIsContactLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching emergency contact:", error);
-        setEmergencyContact(null);
-        setIsContactLoading(false);
-      }
-    );
-    
-    return () => unsubscribe();
-  }, [user, db]);
+    try {
+      const storedContact = localStorage.getItem('ida-emergency-contact');
+      setHasEmergencyContact(!!storedContact);
+    } catch (e) {
+      console.warn("Could not access localStorage for emergency contact.");
+      setHasEmergencyContact(false);
+    }
+    setIsContactLoading(false);
+  }, []);
 
   const handleSendSOS = () => {
-    console.log(`SOS sent to ${emergencyContact?.name} at ${emergencyContact?.phone}`);
+    let contactName = 'your contact';
+    try {
+      const storedContact = localStorage.getItem('ida-emergency-contact');
+      if (storedContact) {
+        contactName = JSON.parse(storedContact).name;
+      }
+    } catch(e) {/* ignore */}
+
+    console.log(`SOS sent to ${contactName}`);
     toast({
         title: translations.sosSentTitle[language as keyof typeof translations.sosSentTitle],
-        description: `${translations.sosSentDesc[language as keyof typeof translations.sosSentDesc]} (${emergencyContact?.name})`,
+        description: `${translations.sosSentDesc[language as keyof typeof translations.sosSentDesc]} (${contactName})`,
     });
   };
 
   const handleSaveContact = async () => {
-    if (!user?.uid || !db) return;
-    
     const isPhoneValid = /^\+?[0-9\s-]{7,15}$/.test(tempContact.phone);
     const isNameValid = tempContact.name.trim().length > 1;
 
@@ -209,10 +201,9 @@ export default function HomePage() {
     }
     
     setIsSaving(true);
-    const docRef = doc(db, 'qr-info', user.uid);
     try {
-        await setDoc(docRef, { emergencyContact: tempContact }, { merge: true });
-        setEmergencyContact(tempContact);
+        localStorage.setItem('ida-emergency-contact', JSON.stringify(tempContact));
+        setHasEmergencyContact(true);
         toast({ title: translations.contactSaved[language as keyof typeof translations.contactSaved]});
         setIsDialogOpen(false);
     } catch (error) {
@@ -231,7 +222,7 @@ export default function HomePage() {
             </Button>
         );
     }
-    if (emergencyContact) {
+    if (hasEmergencyContact) {
         return (
             <AlertDialog>
                 <AlertDialogTrigger asChild>
