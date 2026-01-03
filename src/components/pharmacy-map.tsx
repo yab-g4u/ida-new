@@ -13,7 +13,7 @@ const getLeaflet = async () => {
 
     const createIcon = (url: string) => new L.Icon({
         iconUrl: url,
-        iconRetinaUrl: url.includes('unpkg.com') ? url : url.replace('.png', '-2x.png'),
+        iconRetinaUrl: url, // Keep same for color markers
         shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
         iconSize: [25, 41],
         iconAnchor: [12, 41],

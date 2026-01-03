@@ -144,7 +144,7 @@ export default function LocatePharmacyPage() {
     locationSetSuccess: {en: 'Location set!', am: 'አካባቢ ተቀናብሯል!', om: 'Bakki qindaa\'eera!'},
     submit: {en: 'Submit', am: 'አስገባ', om: 'Galchi'},
     locationErrorTitle: {en: 'Location Error', am: 'የአካባቢ ስህተት', om: 'Dogoggora Bakkaa'},
-    locationErrorDesc: {en: 'Could not get your location. Please ensure location services are enabled.', am: 'አካባቢዎን ማግኘት አልተቻለም። እባክዎ የአካባቢ አገልግሎቶች መንቃታቸውን ያረጋግጡ።', om: 'Iddoo kee argachuu hin dandeenye. Maaloo tajaajilli iddoo argachuu akka banametti mirkaneessi.'},
+    locationErrorDesc: {en: 'Could not get your location. Please ensure location services are enabled.', am: 'አካባቢዎን ማግኘት አልተቻለም። እባክዎ የአካባቢ አገልግሎቶች መንቃታቸውን ያረጋгጡ።', om: 'Iddoo kee argachuu hin dandeenye. Maaloo tajaajilli iddoo argachuu akka banametti mirkaneessi.'},
     locationNotSupported: {en: 'Geolocation is not supported by this browser.', am: 'ጂኦሎኬሽን በዚህ አሳሽ አይደገፍም።', om: 'Geelookeeshiniin biraawzariin kun hin deeggaru.'},
     validationError: {en: 'Validation Error', am: 'የማረጋገጫ ስህተት', om: 'Dogoggora Mirkaneessuu'},
     nameRequired: {en: 'Pharmacy name is required.', am: 'የፋርማሲ ስም ያስፈልጋል።', om: 'Maqaan faarmaasii barbaachisaadha.'},
