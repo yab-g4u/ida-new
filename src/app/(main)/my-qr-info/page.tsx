@@ -107,10 +107,11 @@ export default function MyQrInfoPage() {
         medicalNotes: data.medicalNotes || 'None',
         emergencyContact: data.emergencyContact?.name ? `${data.emergencyContact.name} (${data.emergencyContact.phone})` : 'None',
         pdfUrl: data.pdfUrl || 'None',
+        userId: user?.uid
     };
     const dataString = JSON.stringify(dataForQr, null, 2);
     setQrData(dataString);
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (!user?.uid || !db) {
@@ -133,6 +134,7 @@ export default function MyQrInfoPage() {
             ...form.getValues(),
             name: user.displayName || '',
           });
+          generateQrData({ name: user.displayName || '' });
         }
         setIsLoading(false);
       },
@@ -230,7 +232,7 @@ export default function MyQrInfoPage() {
         pdfFileName: ''
     };
     await onSubmit(updatedValues);
-    setIsSubmitting(false);
+    // No need to set isSubmitting to false here, as onSubmit does it.
   }
 
   return (
