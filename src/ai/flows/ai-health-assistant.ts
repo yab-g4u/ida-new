@@ -4,7 +4,7 @@
  * @fileOverview A mock conversational AI health assistant that provides real-time, grounded information in Amharic, Oromo, and English from a predefined FAQ list.
  */
 
-import { faqData, type FaqItem } from '@/lib/faq-data';
+import { faqData } from '@/lib/faq-data';
 import { z } from 'zod';
 import Fuse from 'fuse.js';
 
@@ -14,21 +14,6 @@ const AiHealthAssistantInputSchema = z.object({
 });
 export type AiHealthAssistantInput = z.infer<typeof AiHealthAssistantInputSchema>;
 
-// Helper to simulate a streaming response
-function createMockStream(text: string) {
-  return new ReadableStream({
-    async start(controller) {
-      const words = text.split(' ');
-      for (const word of words) {
-        const chunk = word + ' ';
-        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ response: chunk })}\n\n`));
-        // Small delay to simulate typing
-        await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 50));
-      }
-      controller.close();
-    },
-  });
-}
 
 const getFaqForLanguage = (lang: 'en' | 'am' | 'om') => {
     return faqData.map(item => ({
@@ -43,7 +28,7 @@ export async function* aiHealthAssistant({ query, language }: AiHealthAssistantI
 
     const fuse = new Fuse(languageFaqs, {
         keys: ['q'],
-        threshold: 0.2, // Strict threshold for exact or very close matches
+        threshold: 0.3, // Loosen threshold slightly for better matching
     });
 
     const results = fuse.search(query);
@@ -61,7 +46,7 @@ export async function* aiHealthAssistant({ query, language }: AiHealthAssistantI
         responseText = noAnswerResponses[language];
     }
     
-    // Simulate streaming the response text
+    // Simulate streaming the response text word by word
     const words = responseText.split(/(\s+)/); // Split by spaces, keeping them
     for (const word of words) {
         yield { response: word };
