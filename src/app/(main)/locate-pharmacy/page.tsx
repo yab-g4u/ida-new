@@ -200,7 +200,7 @@ export default function LocatePharmacyPage() {
         )}
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTrigger asChild>
-                 <Button variant="default" size="icon" className="absolute bottom-8 right-4 rounded-full w-14 h-14 shadow-lg z-10">
+                 <Button variant="default" size="icon" className="absolute bottom-24 right-4 rounded-full w-14 h-14 shadow-lg z-10">
                     <Plus className="w-6 h-6"/>
                 </Button>
             </SheetTrigger>
