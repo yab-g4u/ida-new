@@ -1,13 +1,12 @@
 'use client';
 
 import React, { createContext, useState, useEffect, useMemo, useContext, useCallback } from 'react';
-import type { User as FirebaseUser } from 'firebase/auth'; // Keep for type consistency if needed elsewhere
 import type { ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Icons } from '@/components/icons';
 
 // Define a simple user object for our client-side auth
-interface ClientUser {
+export interface ClientUser {
   uid: string;
   displayName: string;
   isAnonymous: boolean;
@@ -18,15 +17,13 @@ interface AuthContextType {
   loading: boolean;
   userId: string | null;
   signOut: () => void;
+  setUser: (user: ClientUser | null) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const publicRoutes = ['/login', '/signup', '/language-select', '/onboarding'];
+const publicRoutes = ['/login', '/signup', '/language-select', '/onboarding', '/create-user'];
 
-function generateUniqueId() {
-  return 'user_' + Date.now().toString(36) + Math.random().toString(36).substring(2);
-}
 
 function SplashScreen() {
   return (
@@ -50,18 +47,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const storedUser = localStorage.getItem('ida-user');
       if (storedUser) {
         setUser(JSON.parse(storedUser));
-      } else {
-        // If no user, and onboarding is complete, create a new anonymous user.
-        const onboardingComplete = localStorage.getItem('onboardingComplete') === 'true';
-        if (onboardingComplete) {
-            const newUser: ClientUser = {
-                uid: generateUniqueId(),
-                displayName: 'User',
-                isAnonymous: true,
-            };
-            localStorage.setItem('ida-user', JSON.stringify(newUser));
-            setUser(newUser);
-        }
       }
     } catch (e) {
       console.warn('Could not access localStorage for auth.');
@@ -74,17 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route)) || pathname === '/';
     
-    // After onboarding is done, a user should have been created. If not, and they try to access a private route, send them back.
+    // If there's no user and they are trying to access a private route, send them to the beginning of the flow.
     if (!user && !isPublicRoute) {
-        // If they haven't even selected a language, start from the beginning.
-        if(localStorage.getItem('languageSelected') !== 'true') {
-             router.push('/language-select');
-        } else {
-            // Otherwise, they might be on a private page without being "logged in".
-            // For now, we'll let them through as the page will create a user,
-            // but in a real app with login, you'd redirect.
-            // router.push('/login');
-        }
+        router.push('/language-select');
     }
 
   }, [loading, user, pathname, router]);
@@ -105,7 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     loading,
     userId: user?.uid || null,
-    signOut
+    signOut,
+    setUser,
   }), [user, loading, signOut]);
   
   if (loading) {
