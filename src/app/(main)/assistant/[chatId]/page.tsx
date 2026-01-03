@@ -31,6 +31,7 @@ export default function AssistantChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   
   const { user } = useAuth();
   const db = useFirestore();
@@ -90,18 +91,15 @@ export default function AssistantChatPage() {
   }, [user, getTranslation]);
 
   const translations = useMemo(() => ({
-    askMeAnythingPlaceholder: { en: 'Ask me anything...', am: 'ማንኛውንም ነገር ጠይቁኝ...', om: 'Gaaffii Kamiyyuu Na Gaafadhaa...' },
+    askMeAnythingPlaceholder: { en: 'Type a message...', am: 'መልዕክት ይተይቡ...', om: 'Ergaa barreessi...' },
     errorEncountered: { en: 'Sorry, I encountered an error. Please try again.', am: 'ይቅርታ፣ ስህተት አጋጥሞኛል። እባክዎ እንደገና ይሞክሩ።', om: 'Dhiifama, dogoggoraatu mudate. Irra deebi\'ii yaali.' },
     thinking: { en: 'Thinking...', am: 'እያሰበ ነው...', om: 'Yaadaa jira...' },
     citations: { en: 'Citations:', am: 'ማጣቀሻዎች፡', om: 'Wabiiwwan:' },
   }), [language]);
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      const scrollElement = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-      if (scrollElement) {
-        scrollElement.scrollTop = scrollElement.scrollHeight;
-      }
+    if (viewportRef.current) {
+        viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
 
@@ -162,12 +160,12 @@ export default function AssistantChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-background pb-20">
-      <ScrollArea className="flex-1" ref={scrollAreaRef}>
-          <div className="p-4 md:p-6 h-full">
+    <div className="relative w-full h-full">
+      <ScrollArea className="h-full w-full" viewportRef={viewportRef}>
+          <div className="p-4 md:p-6 pb-24">
             {messagesLoading && chatId !== 'new' ? 
               <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div> :
-              (!messages || messages.length === 0) ? <div className='flex items-center justify-center h-full'>{MainContent}</div> :
+              (!messages || messages.length === 0) ? <div className='flex items-center justify-center h-full min-h-[calc(100vh-200px)]'>{MainContent}</div> :
             <div className="space-y-8 max-w-4xl mx-auto">
                 {(messages as Message[]).map((message) => (
                     <div
@@ -221,7 +219,7 @@ export default function AssistantChatPage() {
           </div>
       </ScrollArea>
 
-      <footer className="mt-auto w-full p-4 bg-background/80 backdrop-blur-sm border-t">
+      <footer className="fixed bottom-0 left-0 w-full p-4 bg-background/80 backdrop-blur-sm border-t pb-20">
         <div className="max-w-4xl mx-auto">
             <div className="relative rounded-xl border bg-muted focus-within:ring-2 focus-within:ring-ring">
             <Textarea
