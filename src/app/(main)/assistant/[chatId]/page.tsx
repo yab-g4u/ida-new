@@ -196,7 +196,7 @@ export default function AssistantChatPage() {
   return (
     <div className="flex flex-col h-full w-full bg-background relative">
       <ScrollArea className="flex-1" ref={scrollAreaRef}>
-          <div className="p-4 md:p-6">
+          <div className="p-4 md:p-6 h-full">
             {messagesLoading && chatId !== 'new' ? 
               <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div> :
               (!messages || messages.length === 0) ? <div className='flex items-center justify-center h-full'><MainContent /></div> :
@@ -283,5 +283,3 @@ export default function AssistantChatPage() {
     </div>
   );
 }
-
-    
