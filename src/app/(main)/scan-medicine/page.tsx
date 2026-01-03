@@ -17,7 +17,6 @@ type VerificationStatus = 'verified' | 'caution' | 'unknown';
 
 export default function ScanMedicinePage() {
   const [imageDataUri, setImageDataUri] = useState<string | null>(null);
-  const [extractedText, setExtractedText] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
   const [ocrStatus, setOcrStatus] = useState('');
@@ -30,7 +29,6 @@ export default function ScanMedicinePage() {
 
   const resetState = () => {
     setImageDataUri(null);
-    setExtractedText('');
     setIsProcessing(false);
     setOcrProgress(0);
     setOcrStatus('');
@@ -82,15 +80,14 @@ export default function ScanMedicinePage() {
             if (m.status === 'recognizing text') {
               setOcrStatus('Recognizing text...');
               setOcrProgress(Math.floor(m.progress * 100));
-            } else {
-              setOcrStatus(m.status);
+            } else if (m.status) {
+              setOcrStatus(m.status.charAt(0).toUpperCase() + m.status.slice(1));
             }
           }
         }
       );
       
       const cleanedText = text.replace(/(\r\n|\n|\r)/gm, " ").trim();
-      setExtractedText(cleanedText);
       verifyMedicine(cleanedText, dataUri);
 
     } catch (error) {
@@ -104,7 +101,7 @@ export default function ScanMedicinePage() {
     const lowercasedText = text.toLowerCase();
     
     const matchedMedicine = mockMedicineData.find(med => 
-        med.keywords.some(keyword => lowercasedText.includes(keyword.toLowerCase()))
+        lowercasedText.includes(med.name.toLowerCase())
     );
 
     if (matchedMedicine) {
@@ -187,12 +184,12 @@ export default function ScanMedicinePage() {
                   </div>
                 )}
                 
-                {verificationStatus === 'verified' && aiResult && (
+                {verificationStatus === 'verified' && (aiResult || isAiLoading) && (
                   <Alert variant="default" className="bg-green-100 dark:bg-green-900/50 border-green-500">
                     <ShieldCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
                     <AlertTitle className="text-green-800 dark:text-green-300">Verified</AlertTitle>
                     <AlertDescription className="text-green-700 dark:text-green-400">
-                      Match found for "{aiResult.name}".
+                      Match found for "{aiResult?.name || '...'}".
                     </AlertDescription>
                   </Alert>
                 )}
@@ -229,7 +226,7 @@ export default function ScanMedicinePage() {
           )}
 
           {aiResult && (
-             <Card className="bg-accent">
+             <Card className="bg-accent/50 dark:bg-accent/20">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 font-headline text-2xl">
                         <Wand2 /> AI Explanation
@@ -251,15 +248,6 @@ export default function ScanMedicinePage() {
                     </div>
                 </CardContent>
              </Card>
-          )}
-
-          {extractedText && !isProcessing && (
-              <Card>
-                  <CardHeader><CardTitle>Extracted Text</CardTitle></CardHeader>
-                  <CardContent>
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted p-3 rounded-md">{extractedText}</p>
-                  </CardContent>
-              </Card>
           )}
         </div>
       </div>
