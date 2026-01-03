@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import QRCode from 'qrcode.react';
 
 import { Button } from '@/components/ui/button';
@@ -18,9 +18,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, File, X, User } from 'lucide-react';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Textarea } from '@/components/ui/textarea';
-import { summarizeMedicalInfo } from '@/ai/flows/summarize-medical-info';
+// import { summarizeMedicalInfo } from '@/ai/flows/summarize-medical-info';
 
-declare const Tesseract: any;
+// declare const Tesseract: any;
 
 const formSchema = z.object({
   name: z.string().min(2, 'Required'),
@@ -34,7 +34,7 @@ const formSchema = z.object({
   }).optional(),
   pdfUrl: z.string().url().optional(),
   pdfFileName: z.string().optional(),
-  qrData: z.string().optional(), // To store the summarized AI data
+  qrData: z.string().optional(),
 });
 
 type QrInfo = z.infer<typeof formSchema>;
@@ -95,7 +95,7 @@ export default function MyQrInfoPage() {
     successTitle: {en: "Success", am: "ተሳክቷል", om: "Milkaa'eera"},
     invalidFileTitle: {en: "Invalid File", am: "የማይሰራ ፋይል", om: "Faayilii Sirrii Hin Taane"},
     uniqueId: {en: "Your Unique ID", am: "የእርስዎ ልዩ መታወቂያ", om: "Eenyummaa Kee Isa Addaa"},
-    summarizing: {en: "AI is summarizing...", am: "AI በማጠቃለል ላይ ነው...", om: "AI gabaabsaa jira..."},
+    summarizing: {en: "Saving...", am: "በማስቀመጥ ላይ...", om: "Olkaa'amaa jira..."},
     ocrError: { en: 'Failed to read text from PDF.', am: 'ከፒዲኤፍ ጽሑፍ ማንበብ አልተቻለም።', om: 'PDF irraa barreeffama dubbisuun hin danda\'amne.'},
   }), [getTranslation]);
   
@@ -133,74 +133,32 @@ export default function MyQrInfoPage() {
 
 
   async function onSubmit(values: QrInfo) {
-    if (!user?.uid || !db || !storage) {
+    if (!user?.uid || !db) {
       toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.loginError), variant: 'destructive' });
       return;
     }
     setIsSubmitting(true);
-    const docRef = doc(db, 'qr-info', user.uid);
 
     try {
-      let uploadedPdfUrl = values.pdfUrl;
-      let uploadedPdfName = values.pdfFileName;
-      let pdfText = '';
-
-      if (fileToUpload) {
-         // --- OCR Part ---
-        if (typeof Tesseract === 'undefined') {
-          toast({ variant: 'destructive', title: 'OCR Not Loaded', description: 'Tesseract.js script not found. Please refresh.' });
-          setIsSubmitting(false);
-          return;
-        }
-        try {
-            const pdfDataUri = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = e => resolve(e.target?.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(fileToUpload);
-            });
-            const { data: { text } } = await Tesseract.recognize(pdfDataUri, 'eng');
-            pdfText = text;
-        } catch (ocrError) {
-             toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.ocrError), variant: 'destructive' });
-             console.error("OCR Error: ", ocrError);
-             setIsSubmitting(false);
-             return;
-        }
-        // --- End OCR Part ---
-
-        if (values.pdfUrl) { // Remove old PDF if it exists
-            try {
-                const oldFileRef = ref(storage, values.pdfUrl);
-                await deleteObject(oldFileRef);
-            } catch (deleteError: any) {
-                if (deleteError.code !== 'storage/object-not-found') console.warn("Could not delete old PDF:", deleteError);
-            }
-        }
-
-        const fileRef = ref(storage, `user-qr-pdfs/${user.uid}/${fileToUpload.name}`);
-        const snapshot = await uploadBytes(fileRef, fileToUpload);
-        uploadedPdfUrl = await getDownloadURL(snapshot.ref);
-        uploadedPdfName = fileToUpload.name;
-      }
+      const docRef = doc(db, 'qr-info', user.uid);
       
-      // --- AI Summarization ---
-      const formText = `Name: ${values.name}, Blood Type: ${values.bloodType}, Allergies: ${values.allergies}, Prescriptions: ${values.prescriptions}, Notes: ${values.medicalNotes}`;
-      const rawText = `${formText}\n\n--- PDF CONTENT ---\n${pdfText}`;
-      
-      const aiResult = await summarizeMedicalInfo({ rawText });
-      const summarizedJson = aiResult.summarizedJson;
-      // --- End AI Summarization ---
+      // Simplified data for QR code generation
+      const vitalInfo = {
+        N: values.name,
+        B: values.bloodType,
+        A: values.allergies,
+        M: values.prescriptions,
+        C: values.medicalNotes,
+      };
 
+      const summarizedJson = JSON.stringify(vitalInfo);
 
       const finalValues = {
         ...values,
-        pdfUrl: uploadedPdfUrl,
-        pdfFileName: uploadedPdfName,
         qrData: summarizedJson,
       };
 
-      await setDoc(docRef, finalValues, { merge: true }); 
+      await setDoc(docRef, finalValues, { merge: true });
       form.reset(finalValues); // This will update the UI with the new qrData
       setFileToUpload(null);
       toast({ title: getTranslation(translations.successTitle), description: getTranslation(translations.saveSuccess) });
