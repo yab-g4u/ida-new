@@ -35,6 +35,7 @@ export default function AssistantPage() {
     welcome: { en: `Hi ${user?.displayName || 'there'}! How can I help you today?`, am: `ሰላም ${user?.displayName || ''}! ዛሬ እንዴት ልረዳዎት እችላለሁ?`, om: `Akkam ${user?.displayName || ''}! Har'a akkamittan si gargaaruu danda'a?` },
     placeholder: { en: 'Ask about symptoms, diet, and more...', am: 'ስለ ምልክቶች፣ አመጋገብ፣ እና ሌሎችም ይጠይቁ...', om: 'Waa\'ee mallattoolee, nyaataa fi kanneen biroo gaafadhu...' },
     error: { en: 'Sorry, I encountered an error. Please try again.', am: 'ይቅርታ፣ ስህተት አጋጥሞኛል። እባክዎ እንደገና ይሞክሩ።', om: 'Dhiifama, dogoggorri uumameera. Maaloo irra deebi\'ii yaali.' },
+    demoResponse: { en: "Selam! I'm IDA. Ayizoh (Don't worry). I am here to help. How can I assist you today?", am: "ሰላም! እኔ IDA ነኝ። አይዞህ። ዛሬ እንዴት ልረዳህ እችላለሁ?", om: "Akkam! Ani IDA dha. Hin yaadda'in. Har'a akkamittan si gargaaruu danda'a?"}
   }), [language, user?.displayName]);
 
   useEffect(() => {
@@ -55,66 +56,23 @@ export default function AssistantPage() {
 
     const userMessage: Message = { id: `user-${Date.now()}`, text: input, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
-    const currentInput = input;
     setInput('');
     setIsSending(true);
 
     const botMessageId = `bot-${Date.now()}`;
     setMessages(prev => [...prev, { id: botMessageId, text: '', sender: 'bot', isStreaming: true }]);
     
-    try {
-      // Use the "bulletproof" API route
-      const response = await fetch('/api/genkit/some-flow', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-          },
-          // Send the data in the format expected by the new direct API route
-          body: JSON.stringify({
-              input: { query: currentInput, language }
-          })
-      });
-
-      if (!response.body) throw new Error("No response body");
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let finalBotMessageText = '';
-
-      while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          
-          finalBotMessageText += chunk;
-          setMessages(prev =>
-            prev.map(msg =>
-              msg.id === botMessageId ? { ...msg, text: finalBotMessageText } : msg
-            )
-          );
-      }
-
-
-      setMessages(prev =>
+    // Simulate AI response for demo
+    setTimeout(() => {
+      const demoText = getTranslation(translations.demoResponse);
+       setMessages(prev =>
         prev.map(msg =>
-          msg.id === botMessageId ? { ...msg, isStreaming: false } : msg
+          msg.id === botMessageId ? { ...msg, text: demoText, isStreaming: false } : msg
         )
       );
-
-    } catch (error) {
-      console.error("Error in handleSendMessage:", error);
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === botMessageId
-            ? { ...msg, text: getTranslation(translations.error), isStreaming: false }
-            : msg
-        )
-      );
-    } finally {
       setIsSending(false);
       textareaRef.current?.focus();
-    }
+    }, 1200);
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

@@ -7,7 +7,32 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Search, X, Pill, Info, ShieldAlert, Sparkles, Utensils, Clock, Languages, AlertTriangle } from 'lucide-react';
-import { getMedicineInfo, type GetMedicineInfoOutput } from '@/ai/flows/get-medicine-info';
+
+// Mocked output since the AI flow is removed
+type GetMedicineInfoOutput = {
+  isMedicine: boolean;
+  medicineName: string;
+  whatItIs: string;
+  usage: string;
+  foodInstructions: string;
+  timeTaken: string;
+  sideEffects: string[];
+  localSummaryAmharic: string;
+  localSummaryOromo: string;
+};
+
+const mockDrugInfo: GetMedicineInfoOutput = {
+    isMedicine: true,
+    medicineName: "Paracetamol",
+    whatItIs: "A common pain reliever and fever reducer.",
+    usage: "Used to treat many conditions such as headache, muscle aches, arthritis, backache, toothaches, colds, and fevers.",
+    foodInstructions: "Can be taken with or without food. Take with food if it upsets your stomach.",
+    timeTaken: "Typically taken every 4 to 6 hours as needed.",
+    sideEffects: ["Nausea", "Stomach pain", "Loss of appetite", "Dark urine", "Clay-colored stools", "Jaundice (yellowing of the skin or eyes)"],
+    localSummaryAmharic: "ፓራሲታሞል ለራስ ምታት፣ ለጡንቻ ህመም፣ እና ትኩሳት በሰፊው የሚያገለግል የተለመደ የህመም ማስታገሻ ነው።",
+    localSummaryOromo: "Paaraasitaamool kan dhukkubbii mataa, dhukkubbii maashaa, fi ho'inaaf bal'inaan fayyadu qoricha dhukkubbii ittisuu beekamaadha."
+};
+
 
 export default function SearchMedicinePage() {
   const { getTranslation } = useLanguage();
@@ -27,19 +52,15 @@ export default function SearchMedicinePage() {
     setSelectedDrugInfo(null);
     setError(null);
 
-    try {
-      const result = await getMedicineInfo({ medicineName: searchTerm });
-      if (result.isMedicine) {
-        setSelectedDrugInfo(result);
-      } else {
-        setError(getTranslation(translations.notAMedicine));
-      }
-    } catch (e) {
-      console.error("Search failed", e);
-      setError(getTranslation(translations.searchFailed));
-    } finally {
-      setIsSearching(false);
-    }
+    // Simulate API call
+    setTimeout(() => {
+        if (searchTerm.toLowerCase().includes('para')) {
+            setSelectedDrugInfo({...mockDrugInfo, medicineName: searchTerm});
+        } else {
+            setError(getTranslation(translations.notAMedicine));
+        }
+        setIsSearching(false);
+    }, 1500);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

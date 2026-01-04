@@ -6,10 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Camera, Upload, X, Wand2, AlertTriangle, ShieldCheck, CheckCircle, XCircle, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { AnalyzeMedicinePackageOutput } from '@/ai/flows/analyze-medicine-package';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useLanguage } from '@/hooks/use-language';
-import { translateText } from '@/ai/flows/translate-text';
+
+// Mocked output since the AI flow is removed
+type AnalyzeMedicinePackageOutput = {
+  name: string;
+  usage: string;
+  pros: string;
+  cons: string;
+};
 
 const demoResult: AnalyzeMedicinePackageOutput = {
   name: 'Generic Antibiotic',
@@ -17,6 +23,21 @@ const demoResult: AnalyzeMedicinePackageOutput = {
   pros: 'Effectively treats a wide range of common bacterial infections such as respiratory tract infections, skin infections, and urinary tract infections. It works by stopping the growth of bacteria.',
   cons: 'Possible side effects include nausea, diarrhea, and stomach upset. More serious side effects are rare but can include allergic reactions (rash, itching, swelling). This medication is not effective against viral infections like the common cold or flu.',
 };
+
+const translatedDemoResultAm: AnalyzeMedicinePackageOutput = {
+    name: 'አጠቃላይ አንቲባዮቲክ',
+    usage: 'አንድ ካፕሱል (250mg) በየ 12 ሰዓቱ ሙሉ ብርጭቆ ውሃ ጋር ይውሰዱ። ከምግብ ጋር ወይም ያለ ምግብ ሊወሰድ ይችላል። ካፕሱሉን አይሰብሩ ወይም አያኝኩ። ጥሩ ስሜት ቢሰማዎትም እንኳ ሙሉውን የመድሃኒት ኮርስ ይጨርሱ።',
+    pros: 'እንደ የመተንፈሻ አካላት ኢንፌክሽኖች፣ የቆዳ ኢንፌክሽኖች፣ እና የሽንት ቧንቧ ኢንፌክሽኖች ያሉ የተለመዱ የባክቴሪያ ኢንፌክሽኖችን በብቃት ያክማል። የባክቴሪያዎችን እድገት በማስቆም ይሰራል።',
+    cons: 'ሊከሰቱ የሚችሉ የጎንዮሽ ጉዳቶች ማቅለሽለሽ፣ ተቅማጥ፣ እና የሆድ መረበሽ ያካትታሉ። ከባድ የጎንዮሽ ጉዳቶች እምብዛም ባይሆኑም የአለርጂ ምላሾችን (ሽፍታ፣ ማሳከክ፣ እብጠት) ሊያካትቱ ይችላሉ።'
+};
+
+const translatedDemoResultOm: AnalyzeMedicinePackageOutput = {
+    name: 'Qoricha Antibiotic Waliigalaa',
+    usage: 'Kaapsulii tokko (250mg) sa\'aatii 12 hundatti bishaan guutuu waliin fudhadhu. Nyaata waliinis ta\'e nyaata malee fudhatamuu ni danda\'a. Kaapsulicha hin caccabsin yookaan hin alanfatin. Yoo sitti fooyya\'es, koorsii qorichaa guutuu xumuri.',
+    pros: 'Infekshiniiwwan baakteeriyaa kanneen akka infekshinii ujummoo qilleensaa, infekshinii gogaa, fi infekshinii ujummoo fincaanii bal\'inaan yaala. Guddina baakteeriyaa dhaabuun hojjeta.',
+    cons: 'Miidhaaleen cinaa kan akka garaa naqsuu, garaa kaasaa, fi garaa mufachuu mul\'achuu danda\'u. Miidhaaleen cinaa hamaa ta\'an mul\'achuun isaanii xiqqaadha, garuu aleerjii (fineensa, hooqsisuu, dhiita\'uu) fiduu danda\'u.'
+};
+
 
 type VerificationStatus = 'verified' | 'unknown';
 
@@ -84,31 +105,18 @@ export default function ScanMedicinePage() {
     setIsProcessing(true);
     setAiResult(null);
 
+    // Simulate analysis time
     await new Promise(resolve => setTimeout(resolve, 1500));
-
-    let result = { ...demoResult };
-
-    if (language !== 'en') {
-        try {
-            const [translatedName, translatedUsage, translatedPros, translatedCons] = await Promise.all([
-                translateText({ text: demoResult.name, targetLanguage: language }),
-                translateText({ text: demoResult.usage, targetLanguage: language }),
-                translateText({ text: demoResult.pros, targetLanguage: language }),
-                translateText({ text: demoResult.cons, targetLanguage: language }),
-            ]);
-
-            result = {
-                name: translatedName.translatedText,
-                usage: translatedUsage.translatedText,
-                pros: translatedPros.translatedText,
-                cons: translatedCons.translatedText,
-            };
-        } catch (error) {
-            console.error("Translation failed:", error);
-            // Fallback to English on error
-        }
+    
+    let result: AnalyzeMedicinePackageOutput;
+    if (language === 'am') {
+        result = translatedDemoResultAm;
+    } else if (language === 'om') {
+        result = translatedDemoResultOm;
+    } else {
+        result = demoResult;
     }
-
+    
     setVerificationStatus('verified');
     setAiResult(result);
     setIsProcessing(false);
