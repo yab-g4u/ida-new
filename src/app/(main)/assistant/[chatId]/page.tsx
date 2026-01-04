@@ -77,11 +77,12 @@ export default function AssistantChatPage() {
 
     try {
       let finalBotMessageText = '';
-      const stream = aiHealthAssistant({ query: text, language });
+      const stream = await aiHealthAssistant({ query: text, language });
 
       for await (const chunk of stream) {
-        if (chunk.response) {
-            finalBotMessageText += chunk.response;
+        const text = chunk.text();
+        if (text) {
+            finalBotMessageText += text;
             setMessages(prev => prev.map(msg => 
                 msg.id === botMessagePlaceholder.id 
                 ? { ...msg, text: finalBotMessageText }
