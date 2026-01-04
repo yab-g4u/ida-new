@@ -1,98 +1,78 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useLanguage, type Language } from '@/hooks/use-language';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Search, X, Pill, Info, ShieldAlert, XCircle } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { getDrugData, searchDrugs, type Drug } from '@/lib/drug-data';
-import {
-  translateMedicalBundle,
-  type TranslateMedicalBundleOutput,
-} from '@/ai/flows/translate-medical-bundle';
+import { Loader2, Search, X, Pill, Info, ShieldAlert, Sparkles, Utensils, Clock, Languages, AlertTriangle } from 'lucide-react';
+import { getMedicineInfo, type GetMedicineInfoOutput } from '@/ai/flows/get-medicine-info';
 
 export default function SearchMedicinePage() {
-  const { getTranslation, language } = useLanguage();
+  const { getTranslation } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [isDataLoading, setIsDataLoading] = useState(true);
-  const [searchResults, setSearchResults] = useState<Drug[]>([]);
-  const [selectedDrug, setSelectedDrug] = useState<Drug | null>(null);
+  const [selectedDrugInfo, setSelectedDrugInfo] = useState<GetMedicineInfoOutput | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
-      await getDrugData();
-      setIsDataLoading(false);
-    }
-    loadData();
-  }, []);
 
-  const handleSearch = (term: string) => {
-    if (isDataLoading || term.length < 2) {
-      setSearchResults([]);
-      if (selectedDrug) handleClearSearch();
+  const handleSearch = async () => {
+    if (searchTerm.length < 2) {
+      setSelectedDrugInfo(null);
+      setError(null);
       return;
     }
     setIsSearching(true);
-    const results = searchDrugs(term);
-    setSearchResults(results.slice(0, 50)); // Limit results for performance
-    setIsSearching(false);
+    setSelectedDrugInfo(null);
+    setError(null);
+
+    try {
+      const result = await getMedicineInfo({ medicineName: searchTerm });
+      if (result.isMedicine) {
+        setSelectedDrugInfo(result);
+      } else {
+        setError(getTranslation(translations.notAMedicine));
+      }
+    } catch (e) {
+      console.error("Search failed", e);
+      setError(getTranslation(translations.searchFailed));
+    } finally {
+      setIsSearching(false);
+    }
   };
 
-  const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const term = e.target.value;
-    setSearchTerm(term);
-    handleSearch(term);
-  };
-
-  const handleSelectDrug = (drug: Drug) => {
-    setSelectedDrug(drug);
-    setSearchTerm(drug.name);
-    setSearchResults([]);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
   };
 
   const handleClearSearch = () => {
     setSearchTerm('');
-    setSearchResults([]);
-    setSelectedDrug(null);
+    setSelectedDrugInfo(null);
+    setError(null);
   };
 
   const translations = useMemo(
     () => ({
       title: { en: 'Search Medicine', am: 'መድሃኒት ይፈልጉ', om: 'Qoricha Barbaadi' },
       description: {
-        en: 'Enter a medicine name to get information.',
-        am: 'መረጃ ለማግኘት የመድሃኒት ስም ያስገቡ።',
-        om: 'Odeeffannoo argachuuf maqaa qorichaa galchi.',
+        en: 'Enter a medicine name to get AI-powered information.',
+        am: 'በAI የተደገፈ መረጃ ለማግኘት የመድሃኒት ስም ያስገቡ።',
+        om: 'Odeeffannoo AI-tiin deeggarame argachuuf maqaa qorichaa galchi.',
       },
       searchPlaceholder: {
         en: 'Type a medicine name...',
         am: 'የመድሃኒት ስም ይተይቡ...',
         om: 'Maqaa qorichaa barreessi...',
       },
-      loadingDb: {
-        en: 'Loading medicine database...',
-        am: 'የመድሃኒት ዳታቤዝ በመጫን ላይ...',
-        om: 'Kuusaa qorichaa galchaa jira...',
-      },
-      genericName: { en: 'Generic Name', am: 'አጠቃላይ ስም', om: 'Maqaa Waliigalaa' },
-      drugClasses: { en: 'Drug Class', am: 'የመድሃኒት ክፍል', om: 'Gartuu Qorichaa' },
-      usage: { en: 'Common Usage', am: 'የተለመደ አጠቃቀም', om: 'Fayyadama Waliigalaa' },
-      dosage: { en: 'Dosage Forms', am: 'የመድሃኒት መጠን ቅጾች', om: 'Unkaawwan Hammii' },
-      sideEffects: { en: 'Side Effects', am: 'የጎንዮሽ ጉዳቶች', om: 'Miidhaawwan Ciiqii' },
-      contraindications: {
-        en: 'Contraindications',
-        am: 'የማይወሰድባቸው ሁኔታዎች',
-        om: 'Haalawwan Hin Fudhatamne',
-      },
-      noResults: { en: 'No results found for', am: 'ምንም ውጤት አልተገኘም ለ', om: 'Bu\'aan argame hin jiru' },
-      searchResults: { en: 'Search Results', am: 'የፍለጋ ውጤቶች', om: 'Bu\'aawwan Barbaacha' },
-      translating: { en: 'Translating...', am: 'በመተርጎም ላይ...', om: 'Hiikamaa jira...' },
+      searchButton: { en: 'Search', am: 'ፈልግ', om: 'Barbaadi' },
+      notAMedicine: { en: 'This does not seem to be a valid medicine. Please try another name.', am: 'ይህ ትክክለኛ መድሃኒት አይመስልም። እባክዎ ሌላ ስም ይሞክሩ።', om: 'Kun qoricha sirrii fakkaatu miti. Maaloo maqaa biraa yaali.' },
+      searchFailed: { en: 'An error occurred during the search. Please try again.', am: 'በፍለጋ ወቅት ስህተት ተፈጥሯል። እባክዎ እንደገና ይሞክሩ።', om: 'Yeroo barbaachaatti dogoggorri uumameera. Maaloo irra deebi\'ii yaali.' },
+      disclaimer: { en: 'This is for informational purposes only. Always consult a doctor or pharmacist before taking any medication.', am: 'ይህ ለመረጃ አገልግሎት ብቻ ነው። ማንኛውንም መድሃኒት ከመውሰድዎ በፊት ሁል ጊዜ ሐኪም ወይም ፋርማሲስት ያማክሩ።', om: 'Kun odeeffannoof qofa. Qoricha kamiyyuu fudhachuu keessan dura yeroo hunda hakiima yookiin faarmaasii mariisisaa.' },
     }),
-    [language]
+    [getTranslation]
   );
 
   return (
@@ -107,208 +87,106 @@ export default function SearchMedicinePage() {
         <Input
           placeholder={getTranslation(translations.searchPlaceholder)}
           value={searchTerm}
-          onChange={handleSearchTermChange}
-          disabled={isDataLoading}
-          className="pl-10 text-lg h-12"
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="pl-10 pr-20 text-lg h-14"
         />
-        {isDataLoading && <Loader2 className="absolute right-12 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin" />}
-        {searchTerm && (
-          <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2" onClick={handleClearSearch}>
+        {searchTerm && !isSearching && (
+          <Button variant="ghost" size="icon" className="absolute right-16 top-1/2 -translate-y-1/2" onClick={handleClearSearch}>
             <X className="h-5 w-5 text-muted-foreground" />
           </Button>
         )}
+         <Button onClick={handleSearch} disabled={isSearching} className="absolute right-2 top-1/2 -translate-y-1/2 h-10">
+            {isSearching ? <Loader2 className="h-5 w-5 animate-spin" /> : getTranslation(translations.searchButton)}
+        </Button>
       </div>
 
-      {isDataLoading && (
-        <Alert>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <AlertTitle>{getTranslation(translations.loadingDb)}</AlertTitle>
-        </Alert>
-      )}
-
-      {searchResults.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{getTranslation(translations.searchResults)}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-64">
-              <div className="flex flex-col gap-1">
-                {searchResults.map(drug => (
-                  <button
-                    key={drug.id}
-                    onClick={() => handleSelectDrug(drug)}
-                    className="w-full text-left p-3 rounded-md hover:bg-muted transition-colors flex items-center gap-3"
-                  >
-                    <Pill className="h-5 w-5 text-primary" />
-                    <span>{drug.name}</span>
-                  </button>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
+      {isSearching && (
+        <Card className="flex flex-col items-center justify-center p-8 text-center space-y-4">
+          <Sparkles className="h-10 w-10 animate-pulse text-primary" />
+          <p className="font-semibold text-muted-foreground">{getTranslation({en: 'AI is generating information for', am: 'AI መረጃ እያመነጨ ነው ለ', om: 'AI odeeffannoo uumaa jira'})} "{searchTerm}"...</p>
         </Card>
       )}
 
-      {searchTerm && searchResults.length === 0 && !selectedDrug && !isSearching && !isDataLoading && (
+      {error && (
         <Alert variant="destructive">
-          <AlertTitle>
-            {getTranslation(translations.noResults)} "{searchTerm}"
-          </AlertTitle>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>{error}</AlertTitle>
         </Alert>
       )}
 
-      {selectedDrug && (
-        <DrugInfoCard drug={selectedDrug} language={language} translations={translations} />
+      {selectedDrugInfo && (
+        <DrugInfoDisplay drugInfo={selectedDrugInfo} disclaimer={getTranslation(translations.disclaimer)} />
       )}
     </div>
   );
 }
 
-function DrugInfoCard({ drug, language, translations }: { drug: Drug, language: Language, translations: Record<string, any> }) {
-  const [translatedInfo, setTranslatedInfo] = useState<TranslateMedicalBundleOutput['translatedSections'] | null>(null);
-  const [isTranslating, setIsTranslating] = useState(false);
+function DrugInfoDisplay({ drugInfo, disclaimer }: { drugInfo: GetMedicineInfoOutput, disclaimer: string }) {
+  const { whatItIs, usage, foodInstructions, timeTaken, sideEffects, localSummaryAmharic, localSummaryOromo } = drugInfo;
 
-  const sections = useMemo(() => [
-    { title: 'Drug Class', content: drug.classes, icon: Pill },
-    { title: 'Common Usage', content: drug.usage, icon: Info },
-    { title: 'Side Effects', content: drug.side_effects, icon: ShieldAlert },
-    { title: 'Contraindications', content: drug.contraindications, icon: XCircle },
-  ], [drug]);
-
-  useEffect(() => {
-    const translate = async () => {
-      if (language === 'en') {
-        const englishSections = sections.map(s => ({
-          translatedTitle: translations[s.title.toLowerCase().replace(' ', '')] ? getTranslation(translations[s.title.toLowerCase().replace(' ', '')]) : s.title,
-          translatedContent: s.content
-        }));
-        setTranslatedInfo(englishSections);
-        return;
-      }
-
-      setIsTranslating(true);
-      setTranslatedInfo(null);
-      
-      try {
-        const sectionsToTranslate = sections
-            .filter(s => s.content && s.content.toLowerCase() !== 'n/a')
-            .map(s => ({ title: s.title, content: s.content }));
-
-        if (sectionsToTranslate.length === 0) {
-            setTranslatedInfo([]);
-            return;
-        }
-
-        const result = await translateMedicalBundle({ 
-            sections: sectionsToTranslate, 
-            targetLanguage: language 
-        });
-
-        // Re-integrate the translated content with the original structure
-        const finalInfo = sections.map(s => {
-          const translatedSection = result.translatedSections.find(ts => {
-            // This is a bit brittle, might need a better mapping strategy
-            const originalSection = sectionsToTranslate.find(original => original.content === ts.translatedContent || original.title === ts.translatedTitle);
-            return originalSection ? originalSection.title === s.title : false;
-          });
-
-          // Find translated title from the bundle
-          const matchingOriginal = sectionsToTranslate.find(sec => sec.title === s.title);
-          const translatedTitleObj = matchingOriginal ? result.translatedSections.find(res => res.translatedContent === matchingOriginal.content) : undefined;
-          
-          let translatedTitle = getTranslation(translations[s.title.toLowerCase().replace(/ /g, '')]) || s.title;
-          const translatedItem = result.translatedSections.find(item => sectionsToTranslate.some(orig => orig.title === s.title && (item.translatedContent === orig.content || item.translatedTitle === orig.title)));
-
-          if (translatedItem) {
-             const originalIndex = sectionsToTranslate.findIndex(orig => orig.title === s.title);
-             if (result.translatedSections[originalIndex]) {
-                translatedTitle = result.translatedSections[originalIndex].translatedTitle;
-             }
-          }
-
-          return {
-            translatedTitle: translatedTitle,
-            translatedContent: translatedSection ? translatedSection.translatedContent : s.content,
-          };
-        });
-        
-        // Let's create a map for easier lookup
-        const translatedMap = new Map<string, { translatedTitle: string; translatedContent: string }>();
-        result.translatedSections.forEach((translated, index) => {
-            const original = sectionsToTranslate[index];
-            if (original) {
-                translatedMap.set(original.title, translated);
-            }
-        });
-
-        const allSectionsInfo = sections.map(s => {
-            if (s.content && s.content.toLowerCase() !== 'n/a' && translatedMap.has(s.title)) {
-                const translated = translatedMap.get(s.title)!;
-                return {
-                    translatedTitle: translated.translatedTitle,
-                    translatedContent: translated.translatedContent
-                };
-            }
-            // Fallback for non-translated or N/A content
-             return {
-                translatedTitle: getTranslation({en: s.title, am: s.title, om: s.title}), // This will need a translation map
-                translatedContent: s.content
-            };
-        });
-
-        setTranslatedInfo(allSectionsInfo);
-
-
-      } catch (error) {
-        console.error('Translation failed:', error);
-        // Fallback to english on error
-        const fallbackSections = sections.map(s => ({ 
-            translatedTitle: getTranslation(translations[s.title.toLowerCase().replace(' ', '')]) || s.title,
-            translatedContent: s.content 
-        }));
-        setTranslatedInfo(fallbackSections);
-      } finally {
-        setIsTranslating(false);
-      }
-    };
-
-    translate();
-  }, [drug, language, sections, getTranslation, translations]);
+  const sections = [
+    { title: 'What it is', content: whatItIs, icon: Pill, emoji: '💊' },
+    { title: 'Usage', content: usage, icon: Info, emoji: '✅' },
+    { title: 'Food Instructions', content: foodInstructions, icon: Utensils, emoji: '🍽️' },
+    { title: 'Time Taken', content: timeTaken, icon: Clock, emoji: '⏱️' },
+  ];
 
   return (
     <Card className='animate-in fade-in-50'>
       <CardHeader>
-        <CardTitle className="font-headline text-2xl">{drug.name}</CardTitle>
-        <CardDescription>{getTranslation(translations.genericName)}</CardDescription>
+        <CardTitle className="font-headline text-2xl flex items-center gap-2">
+            <Sparkles className="text-primary"/> AI-Generated Summary for "{drugInfo.medicineName}"
+        </CardTitle>
+        <CardDescription>Information generated by IDA Health Assistant.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {isTranslating && (
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground p-8">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <span>{getTranslation(translations.translating)}...</span>
-          </div>
-        )}
-        {translatedInfo && sections.map((section, index) => {
-          const translatedSection = translatedInfo[index];
-          if (!translatedSection || !translatedSection.translatedContent || translatedSection.translatedContent.toLowerCase() === 'n/a') {
-            return null;
-          }
-          return (
-             <InfoSection 
+        {sections.map((section, index) => (
+            <InfoSection 
                 key={index}
-                title={translatedSection.translatedTitle}
-                content={translatedSection.translatedContent}
+                title={`${section.emoji} ${section.title}`}
+                content={section.content}
                 icon={section.icon}
-             />
-          );
-        })}
+            />
+        ))}
+
+        <InfoSection 
+            title={`⚠️ Side Effects`}
+            content={
+                <ul className='list-disc pl-5 space-y-1'>
+                    {sideEffects.map((effect, i) => <li key={i}>{effect}</li>)}
+                </ul>
+            }
+            icon={ShieldAlert}
+        />
+        
+        <div className='p-4 bg-muted/50 rounded-lg space-y-4'>
+            <InfoSection 
+                title={`🌍 Local Translation`}
+                content={
+                    <div className='space-y-2'>
+                        <p><span className='font-bold'>አማርኛ:</span> {localSummaryAmharic}</p>
+                        <p><span className='font-bold'>Afaan Oromoo:</span> {localSummaryOromo}</p>
+                    </div>
+                }
+                icon={Languages}
+            />
+        </div>
+        
+        <Alert variant="default" className="mt-4 border-amber-500 bg-amber-50 dark:bg-amber-950">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <AlertTitle className="text-amber-800 dark:text-amber-300">Disclaimer</AlertTitle>
+            <AlertDescription className="text-amber-700 dark:text-amber-500">
+                {disclaimer}
+            </AlertDescription>
+        </Alert>
+
       </CardContent>
     </Card>
   )
 }
 
-function InfoSection({ title, content, icon: Icon }: { title: string; content: string; icon?: React.ElementType }) {
+function InfoSection({ title, content, icon: Icon }: { title: string; content: React.ReactNode; icon?: React.ElementType }) {
   return (
     <div className="flex items-start gap-4">
         {Icon && (
@@ -317,8 +195,8 @@ function InfoSection({ title, content, icon: Icon }: { title: string; content: s
             </div>
         )}
         <div className='flex-1'>
-            <h3 className="font-bold text-foreground">{title}</h3>
-            <p className="text-sm text-muted-foreground">{content}</p>
+            <h3 className="font-bold text-foreground text-lg">{title}</h3>
+            <div className="text-md text-muted-foreground">{content}</div>
         </div>
     </div>
   );

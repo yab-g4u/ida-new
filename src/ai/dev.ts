@@ -10,3 +10,4 @@ import '@/ai/flows/summarize-medical-info.ts';
 import '@/ai/flows/translate-text.ts';
 import '@/ai/flows/translate-medical-bundle.ts';
 import '@/ai/flows/ai-health-assistant.ts';
+import '@/ai/flows/get-medicine-info.ts';
