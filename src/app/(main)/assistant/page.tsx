@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useLanguage, type Language } from '@/hooks/use-language';
@@ -7,7 +8,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Send, User, Sparkles } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { aiHealthAssistant } from '@/ai/flows/ai-health-assistant';
 import { useAuth } from '@/hooks/use-auth';
 import { FormattedResponse } from '@/components/formatted-response';
 import { PaperAirplaneIcon } from '@heroicons/react/24/solid';
@@ -63,11 +63,13 @@ export default function AssistantPage() {
     setMessages(prev => [...prev, { id: botMessageId, text: '', sender: 'bot', isStreaming: true }]);
     
     try {
-      const response = await fetch('/api/genkit/flow/aiHealthAssistant', {
+      // Use the "bulletproof" API route
+      const response = await fetch('/api/genkit/some-flow', {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json',
           },
+          // Send the data in the format expected by the new direct API route
           body: JSON.stringify({
               input: { query: currentInput, language }
           })
