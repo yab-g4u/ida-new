@@ -77,7 +77,7 @@ export default function AssistantChatPage() {
 
     try {
       let finalBotMessageText = '';
-      const stream = await aiHealthAssistant({ query: text, language });
+      const { stream } = await aiHealthAssistant({ query: text, language });
 
       for await (const chunk of stream) {
         const text = chunk.text();
