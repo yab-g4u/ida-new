@@ -5,8 +5,9 @@
  * - aiHealthAssistant - A streaming function that provides conversational health advice.
  * - AiHealthAssistantInput - The input type for the function.
  */
-import { initializeFirebase } from '@/firebase';
+import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getVertexAI, getGenerativeModel } from "firebase/vertexai";
+import { firebaseConfig } from '@/firebase/config';
 import {z} from 'zod';
 
 const AiHealthAssistantInputSchema = z.object({
@@ -15,11 +16,16 @@ const AiHealthAssistantInputSchema = z.object({
 });
 export type AiHealthAssistantInput = z.infer<typeof AiHealthAssistantInputSchema>;
 
+// Helper to initialize Firebase on the server
+let app: FirebaseApp;
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApp();
+}
+
+
 export async function aiHealthAssistant(input: AiHealthAssistantInput) {
-  const { app } = initializeFirebase();
-  if (!app) {
-    throw new Error("Firebase not initialized");
-  }
 
   // Initialize with the 'global' location for Gemini 3 support
   const vertexAI = getVertexAI(app, { location: 'global' }); 
@@ -60,15 +66,6 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
 `;
 
   const result = await model.generateContentStream([systemPrompt, input.query]);
-  
-  // The Critical Fix: The user wants to iterate over result.stream
-  // The firebase/vertexai SDK returns the stream directly in the result object.
-  // We will transform it to match the expected frontend structure { stream: ... }
-  // To avoid changing the frontend consumer again, we will wrap it here.
-  // The final object is not a promise, but the frontend will handle the stream correctly.
-  
-  // No, actually, the frontend is expecting a stream directly now after my last change.
-  // And the `generateContentStream` in `firebase/vertexai` returns an object with a `stream` property.
   
   const readableStream = new ReadableStream({
     async start(controller) {
