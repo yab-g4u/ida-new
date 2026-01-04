@@ -34,7 +34,11 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
     // Use the stable 2026 model ID
     model: "gemini-3-flash", 
     generationConfig: {
-       thinkingBudget: 0,
+      thinkingConfig: {
+        thinkingLevel: "minimal" 
+      },
+      temperature: 1.0,
+      maxOutputTokens: 1000,
     }
   });
 
