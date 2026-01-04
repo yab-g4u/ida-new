@@ -179,7 +179,11 @@ function DrugInfoCard({ drug, language, translations }: { drug: Drug, language: 
   useEffect(() => {
     const translate = async () => {
       if (language === 'en') {
-        setTranslatedInfo(sections.map(s => ({ translatedTitle: s.title, translatedContent: s.content })));
+        const englishSections = sections.map(s => ({
+          translatedTitle: translations[s.title.toLowerCase().replace(' ', '')] ? getTranslation(translations[s.title.toLowerCase().replace(' ', '')]) : s.title,
+          translatedContent: s.content
+        }));
+        setTranslatedInfo(englishSections);
         return;
       }
 
@@ -187,7 +191,15 @@ function DrugInfoCard({ drug, language, translations }: { drug: Drug, language: 
       setTranslatedInfo(null);
       
       try {
-        const sectionsToTranslate = sections.filter(s => s.content && s.content.toLowerCase() !== 'n/a');
+        const sectionsToTranslate = sections
+            .filter(s => s.content && s.content.toLowerCase() !== 'n/a')
+            .map(s => ({ title: s.title, content: s.content }));
+
+        if (sectionsToTranslate.length === 0) {
+            setTranslatedInfo([]);
+            return;
+        }
+
         const result = await translateMedicalBundle({ 
             sections: sectionsToTranslate, 
             targetLanguage: language 
@@ -195,57 +207,91 @@ function DrugInfoCard({ drug, language, translations }: { drug: Drug, language: 
 
         // Re-integrate the translated content with the original structure
         const finalInfo = sections.map(s => {
-          const translatedSection = result.translatedSections.find(ts => ts.translatedTitle === s.title || (s.title === "Drug Class" && ts.translatedTitle === "የመድሃኒት ክፍል"));
-          
-          if (translatedSection) {
-            return {
-              translatedTitle: translatedSection.translatedTitle,
-              translatedContent: translatedSection.translatedContent
-            };
-          }
-
-          // Find the corresponding translated title from the list if not found above
-          const originalToTranslatedTitleMap: Record<string, string> = {};
-          result.translatedSections.forEach((ts, index) => {
-            originalToTranslatedTitleMap[sectionsToTranslate[index].title] = ts.translatedTitle;
+          const translatedSection = result.translatedSections.find(ts => {
+            // This is a bit brittle, might need a better mapping strategy
+            const originalSection = sectionsToTranslate.find(original => original.content === ts.translatedContent || original.title === ts.translatedTitle);
+            return originalSection ? originalSection.title === s.title : false;
           });
 
+          // Find translated title from the bundle
+          const matchingOriginal = sectionsToTranslate.find(sec => sec.title === s.title);
+          const translatedTitleObj = matchingOriginal ? result.translatedSections.find(res => res.translatedContent === matchingOriginal.content) : undefined;
+          
+          let translatedTitle = getTranslation(translations[s.title.toLowerCase().replace(/ /g, '')]) || s.title;
+          const translatedItem = result.translatedSections.find(item => sectionsToTranslate.some(orig => orig.title === s.title && (item.translatedContent === orig.content || item.translatedTitle === orig.title)));
+
+          if (translatedItem) {
+             const originalIndex = sectionsToTranslate.findIndex(orig => orig.title === s.title);
+             if (result.translatedSections[originalIndex]) {
+                translatedTitle = result.translatedSections[originalIndex].translatedTitle;
+             }
+          }
+
           return {
-            translatedTitle: originalToTranslatedTitleMap[s.title] || s.title,
-            translatedContent: s.content
+            translatedTitle: translatedTitle,
+            translatedContent: translatedSection ? translatedSection.translatedContent : s.content,
           };
         });
+        
+        // Let's create a map for easier lookup
+        const translatedMap = new Map<string, { translatedTitle: string; translatedContent: string }>();
+        result.translatedSections.forEach((translated, index) => {
+            const original = sectionsToTranslate[index];
+            if (original) {
+                translatedMap.set(original.title, translated);
+            }
+        });
 
-        setTranslatedInfo(finalInfo);
+        const allSectionsInfo = sections.map(s => {
+            if (s.content && s.content.toLowerCase() !== 'n/a' && translatedMap.has(s.title)) {
+                const translated = translatedMap.get(s.title)!;
+                return {
+                    translatedTitle: translated.translatedTitle,
+                    translatedContent: translated.translatedContent
+                };
+            }
+            // Fallback for non-translated or N/A content
+             return {
+                translatedTitle: getTranslation({en: s.title, am: s.title, om: s.title}), // This will need a translation map
+                translatedContent: s.content
+            };
+        });
+
+        setTranslatedInfo(allSectionsInfo);
+
 
       } catch (error) {
         console.error('Translation failed:', error);
         // Fallback to english on error
-        setTranslatedInfo(sections.map(s => ({ translatedTitle: s.title, translatedContent: s.content })));
+        const fallbackSections = sections.map(s => ({ 
+            translatedTitle: getTranslation(translations[s.title.toLowerCase().replace(' ', '')]) || s.title,
+            translatedContent: s.content 
+        }));
+        setTranslatedInfo(fallbackSections);
       } finally {
         setIsTranslating(false);
       }
     };
 
     translate();
-  }, [drug, language, sections]);
+  }, [drug, language, sections, getTranslation, translations]);
 
   return (
     <Card className='animate-in fade-in-50'>
       <CardHeader>
         <CardTitle className="font-headline text-2xl">{drug.name}</CardTitle>
-        <CardDescription>{translations.genericName[language]}</CardDescription>
+        <CardDescription>{getTranslation(translations.genericName)}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {isTranslating && (
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground p-8">
             <Loader2 className="h-6 w-6 animate-spin" />
-            <span>{translations.translating[language]}...</span>
+            <span>{getTranslation(translations.translating)}...</span>
           </div>
         )}
         {translatedInfo && sections.map((section, index) => {
           const translatedSection = translatedInfo[index];
-          if (!translatedSection.translatedContent || translatedSection.translatedContent.toLowerCase() === 'n/a') {
+          if (!translatedSection || !translatedSection.translatedContent || translatedSection.translatedContent.toLowerCase() === 'n/a') {
             return null;
           }
           return (
