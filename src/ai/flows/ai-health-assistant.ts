@@ -47,9 +47,6 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
     model: 'googleai/gemini-1.5-flash-latest',
     prompt: input.query,
     system: systemPrompt,
-    config: {
-        temperature: 0.3,
-    }
   });
 
   const readableStream = new ReadableStream({

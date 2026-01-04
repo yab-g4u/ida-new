@@ -11,13 +11,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { getDrugData, searchDrugs, type Drug } from '@/lib/drug-data';
 import { translateText } from '@/ai/flows/translate-text';
 
-type TranslatedContent = {
-    classes: string;
-    usage: string;
-    side_effects: string;
-    contraindications: string;
-}
-
 export default function SearchMedicinePage() {
   const { getTranslation, language } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,8 +18,6 @@ export default function SearchMedicinePage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [searchResults, setSearchResults] = useState<Drug[]>([]);
   const [selectedDrug, setSelectedDrug] = useState<Drug | null>(null);
-  const [translatedContent, setTranslatedContent] = useState<TranslatedContent | null>(null);
-  const [isTranslating, setIsTranslating] = useState(false);
   
   useEffect(() => {
     async function loadData() {
@@ -64,49 +55,7 @@ export default function SearchMedicinePage() {
     setSearchTerm('');
     setSearchResults([]);
     setSelectedDrug(null);
-    setTranslatedContent(null);
   };
-
-  useEffect(() => {
-    if (selectedDrug && language !== 'en') {
-      const translateContent = async () => {
-        setIsTranslating(true);
-        try {
-          const [classes, usage, side_effects, contraindications] = await Promise.all([
-            translateText({ text: selectedDrug.classes, targetLanguage: language }),
-            translateText({ text: selectedDrug.usage, targetLanguage: language }),
-            translateText({ text: selectedDrug.side_effects, targetLanguage: language }),
-            translateText({ text: selectedDrug.contraindications, targetLanguage: language }),
-          ]);
-          setTranslatedContent({
-            classes: classes.translatedText,
-            usage: usage.translatedText,
-            side_effects: side_effects.translatedText,
-            contraindications: contraindications.translatedText,
-          });
-        } catch (error) {
-          console.error("Translation failed:", error);
-          // Fallback to English if translation fails
-          setTranslatedContent({
-            classes: selectedDrug.classes,
-            usage: selectedDrug.usage,
-            side_effects: selectedDrug.side_effects,
-            contraindications: selectedDrug.contraindications,
-          });
-        } finally {
-          setIsTranslating(false);
-        }
-      };
-      translateContent();
-    } else if (selectedDrug) {
-      setTranslatedContent({
-        classes: selectedDrug.classes,
-        usage: selectedDrug.usage,
-        side_effects: selectedDrug.side_effects,
-        contraindications: selectedDrug.contraindications,
-      });
-    }
-  }, [selectedDrug, language]);
 
   const translations = useMemo(() => ({
     title: { en: 'Search Medicine', am: 'መድሃኒት ይፈልጉ', om: 'Qoricha Barbaadi' },
@@ -192,19 +141,10 @@ export default function SearchMedicinePage() {
             <CardDescription>{getTranslation(translations.genericName)}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {isTranslating ? (
-              <div className="flex items-center justify-center gap-2 text-muted-foreground py-8">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>{getTranslation(translations.translating)}</span>
-              </div>
-            ) : translatedContent ? (
-              <>
-                <InfoSection title={getTranslation(translations.drugClasses)} content={translatedContent.classes} icon={Pill} />
-                <InfoSection title={getTranslation(translations.usage)} content={translatedContent.usage} icon={Info} />
-                <InfoSection title={getTranslation(translations.sideEffects)} content={translatedContent.side_effects} icon={ShieldAlert} />
-                <InfoSection title={getTranslation(translations.contraindications)} content={translatedContent.contraindications} icon={XCircle} />
-              </>
-            ) : null}
+            <InfoSection title={getTranslation(translations.drugClasses)} content={selectedDrug.classes} icon={Pill} language={language} translatingLabel={getTranslation(translations.translating)} />
+            <InfoSection title={getTranslation(translations.usage)} content={selectedDrug.usage} icon={Info} language={language} translatingLabel={getTranslation(translations.translating)} />
+            <InfoSection title={getTranslation(translations.sideEffects)} content={selectedDrug.side_effects} icon={ShieldAlert} language={language} translatingLabel={getTranslation(translations.translating)} />
+            <InfoSection title={getTranslation(translations.contraindications)} content={selectedDrug.contraindications} icon={XCircle} language={language} translatingLabel={getTranslation(translations.translating)} />
           </CardContent>
         </Card>
       )}
@@ -214,7 +154,38 @@ export default function SearchMedicinePage() {
 
 import { XCircle } from 'lucide-react';
 
-function InfoSection({ title, content, icon: Icon }: { title: string; content: string; icon?: React.ElementType }) {
+function InfoSection({ title, content, icon: Icon, language, translatingLabel }: { title: string; content: string; icon?: React.ElementType, language: Language, translatingLabel: string }) {
+  const [translatedContent, setTranslatedContent] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+
+  useEffect(() => {
+    if (!content || content.toLowerCase() === 'n/a') {
+      setTranslatedContent(content);
+      return;
+    }
+
+    if (language === 'en') {
+      setTranslatedContent(content);
+      return;
+    }
+
+    const translate = async () => {
+      setIsTranslating(true);
+      setTranslatedContent(null);
+      try {
+        const result = await translateText({ text: content, targetLanguage: language });
+        setTranslatedContent(result.translatedText);
+      } catch (error) {
+        console.error('Translation failed:', error);
+        setTranslatedContent(content); // Fallback to original content
+      } finally {
+        setIsTranslating(false);
+      }
+    };
+
+    translate();
+  }, [content, language]);
+
   if (!content || content.toLowerCase() === 'n/a') return null;
 
   return (
@@ -226,7 +197,14 @@ function InfoSection({ title, content, icon: Icon }: { title: string; content: s
         )}
         <div className='flex-1'>
             <h3 className="font-bold text-foreground">{title}</h3>
-            <p className="text-sm text-muted-foreground">{content}</p>
+            {isTranslating ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>{translatingLabel}</span>
+              </div>
+            ) : (
+               <p className="text-sm text-muted-foreground">{translatedContent}</p>
+            )}
         </div>
     </div>
   );
