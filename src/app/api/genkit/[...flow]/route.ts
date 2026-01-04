@@ -5,7 +5,7 @@
  * create API endpoints for all the flows defined in the application.
  */
 
-import { expressHandler } from 'genkit/next';
+import { expressHandler } from '@genkit-ai/next';
 import '@/ai/dev'; // Make sure to import all the flow definitions
 
 export const { POST } = expressHandler();
