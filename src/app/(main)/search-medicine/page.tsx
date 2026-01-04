@@ -141,10 +141,10 @@ export default function SearchMedicinePage() {
             <CardDescription>{getTranslation(translations.genericName)}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <InfoSection title={getTranslation(translations.drugClasses)} content={selectedDrug.classes} icon={Pill} language={language} translatingLabel={getTranslation(translations.translating)} />
-            <InfoSection title={getTranslation(translations.usage)} content={selectedDrug.usage} icon={Info} language={language} translatingLabel={getTranslation(translations.translating)} />
-            <InfoSection title={getTranslation(translations.sideEffects)} content={selectedDrug.side_effects} icon={ShieldAlert} language={language} translatingLabel={getTranslation(translations.translating)} />
-            <InfoSection title={getTranslation(translations.contraindications)} content={selectedDrug.contraindications} icon={XCircle} language={language} translatingLabel={getTranslation(translations.translating)} />
+            <InfoSection title="Drug Class" content={selectedDrug.classes} icon={Pill} language={language} translatingLabel={getTranslation(translations.translating)} />
+            <InfoSection title="Common Usage" content={selectedDrug.usage} icon={Info} language={language} translatingLabel={getTranslation(translations.translating)} />
+            <InfoSection title="Side Effects" content={selectedDrug.side_effects} icon={ShieldAlert} language={language} translatingLabel={getTranslation(translations.translating)} />
+            <InfoSection title="Contraindications" content={selectedDrug.contraindications} icon={XCircle} language={language} translatingLabel={getTranslation(translations.translating)} />
           </CardContent>
         </Card>
       )}
@@ -155,28 +155,33 @@ export default function SearchMedicinePage() {
 import { XCircle } from 'lucide-react';
 
 function InfoSection({ title, content, icon: Icon, language, translatingLabel }: { title: string; content: string; icon?: React.ElementType, language: Language, translatingLabel: string }) {
+  const [translatedTitle, setTranslatedTitle] = useState(title);
   const [translatedContent, setTranslatedContent] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
 
   useEffect(() => {
-    if (!content || content.toLowerCase() === 'n/a') {
-      setTranslatedContent(content);
-      return;
-    }
-
-    if (language === 'en') {
-      setTranslatedContent(content);
-      return;
-    }
-
     const translate = async () => {
+      if (language === 'en') {
+        setTranslatedTitle(title);
+        setTranslatedContent(content);
+        return;
+      }
+
       setIsTranslating(true);
       setTranslatedContent(null);
+      
       try {
-        const result = await translateText({ text: content, targetLanguage: language });
-        setTranslatedContent(result.translatedText);
+        const [titleRes, contentRes] = await Promise.all([
+          translateText({ text: title, targetLanguage: language }),
+          (!content || content.toLowerCase() === 'n/a') 
+            ? Promise.resolve({ translatedText: content }) 
+            : translateText({ text: content, targetLanguage: language })
+        ]);
+        setTranslatedTitle(titleRes.translatedText);
+        setTranslatedContent(contentRes.translatedText);
       } catch (error) {
         console.error('Translation failed:', error);
+        setTranslatedTitle(title);
         setTranslatedContent(content); // Fallback to original content
       } finally {
         setIsTranslating(false);
@@ -184,7 +189,7 @@ function InfoSection({ title, content, icon: Icon, language, translatingLabel }:
     };
 
     translate();
-  }, [content, language]);
+  }, [content, title, language]);
 
   if (!content || content.toLowerCase() === 'n/a') return null;
 
@@ -196,14 +201,16 @@ function InfoSection({ title, content, icon: Icon, language, translatingLabel }:
             </div>
         )}
         <div className='flex-1'>
-            <h3 className="font-bold text-foreground">{title}</h3>
             {isTranslating ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>{translatingLabel}</span>
+                <span>{translatingLabel}...</span>
               </div>
             ) : (
-               <p className="text-sm text-muted-foreground">{translatedContent}</p>
+              <>
+                <h3 className="font-bold text-foreground">{translatedTitle}</h3>
+                <p className="text-sm text-muted-foreground">{translatedContent}</p>
+              </>
             )}
         </div>
     </div>
