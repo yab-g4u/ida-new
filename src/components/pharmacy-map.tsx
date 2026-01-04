@@ -38,9 +38,10 @@ type PharmacyMapProps = {
   initialView: [number, number] | null;
   mapRef: MutableRefObject<{ flyTo: (coords: [number, number]) => void } | null>;
   communityPharmacies: CommunityPharmacy[];
+  onMapClick?: (coords: [number, number]) => void;
 };
 
-export function PharmacyMap({ initialView, mapRef, communityPharmacies }: PharmacyMapProps) {
+export function PharmacyMap({ initialView, mapRef, communityPharmacies, onMapClick }: PharmacyMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
@@ -75,6 +76,12 @@ export function PharmacyMap({ initialView, mapRef, communityPharmacies }: Pharma
 
         L.tileLayer(tileLayerUrl, { attribution }).addTo(map);
 
+        if (onMapClick) {
+            map.on('click', (e) => {
+                onMapClick([e.latlng.lat, e.latlng.lng]);
+            });
+        }
+
         if (mapRef) {
           mapRef.current = {
             flyTo: (coords: [number, number]) => {
@@ -96,7 +103,7 @@ export function PharmacyMap({ initialView, mapRef, communityPharmacies }: Pharma
         mapInstanceRef.current = null;
       }
     };
-  }, [initialView, mapRef]);
+  }, [initialView, mapRef, onMapClick]);
 
   // Update markers when data changes
   useEffect(() => {
@@ -149,4 +156,3 @@ export function PharmacyMap({ initialView, mapRef, communityPharmacies }: Pharma
 
   return <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />;
 }
-    

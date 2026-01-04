@@ -49,14 +49,16 @@ export default function LocatePharmacyPage() {
   }, []);
 
   const addCommunityPharmacy = useCallback((pharmacy: CommunityPharmacy) => {
-    const updatedList = [...communityPharmacies, pharmacy];
-    setCommunityPharmacies(updatedList);
-    try {
-      localStorage.setItem('communityPharmacies', JSON.stringify(updatedList));
-    } catch (e) {
-      console.warn("Could not save community pharmacy to localStorage");
-    }
-  }, [communityPharmacies]);
+    setCommunityPharmacies(prev => {
+        const updatedList = [...prev, pharmacy];
+        try {
+            localStorage.setItem('communityPharmacies', JSON.stringify(updatedList));
+        } catch (e) {
+            console.warn("Could not save community pharmacy to localStorage");
+        }
+        return updatedList;
+    });
+  }, []);
 
   const handleGetUserLocation = (onSuccess: (coords: [number, number]) => void) => {
     setIsLoadingLocation(true);
@@ -90,10 +92,7 @@ export default function LocatePharmacyPage() {
   }
 
   const handleSetPharmacyLocation = () => {
-    handleGetUserLocation((coords) => {
-        setNewPharmacyCoords(coords);
-        toast({ title: getTranslation(translations.locationSetSuccess) });
-    });
+    toast({ title: getTranslation({en: 'Tap on the map', am: 'ካርታው ላይ መታ ያድርጉ', om: 'Kaartaa irra tuqi'}) , description: getTranslation({en: 'Tap on the map to set the new pharmacy\'s location.', am: 'የአዲሱን ፋርማሲ ቦታ ለማዘጋጀት ካርታው ላይ መታ ያድርጉ።', om: 'Bakka faarmaasii haaraa qopheessuuf kaartaa irra tuqi.'}) });
   };
 
   const handleAddPharmacySubmit = () => {
@@ -117,7 +116,6 @@ export default function LocatePharmacyPage() {
     
     addCommunityPharmacy(newEntry);
     
-    // Reset form and close sheet
     setTimeout(() => {
         setIsSubmitting(false);
         setNewPharmacy({ name: '', comment: '' });
@@ -140,18 +138,18 @@ export default function LocatePharmacyPage() {
     pharmacyName: {en: 'Pharmacy Name', am: 'የፋርማሲ ስም', om: 'Maqaa Faarmaasii'},
     comment: {en: 'Comment (Optional)', am: 'አስተያየት (አማራጭ)', om: 'Yaada (Filannoo)'},
     commentPlaceholder: {en: 'e.g. "Open until 10 PM"', am: 'ለምሳሌ "እስከ 10 ሰዓት ክፍት ነው"', om: 'fkn. "Hanga 10 PMtti banaadha"'},
-    setPharmacyLocation: {en: 'Use Current Location', am: 'የአሁኑን አካባቢ ተጠቀም', om: 'Iddoo Ammaa Fayyadami'},
+    setPharmacyLocation: {en: 'Tap on Map to Set Location', am: 'ቦታ ለማዘጋጀት ካርታው ላይ መታ ያድርጉ', om: 'Bakka Qopheessuuf Kaartaa irra Tuqi'},
     locationSetSuccess: {en: 'Location set!', am: 'አካባቢ ተቀናብሯል!', om: 'Bakki qindaa\'eera!'},
     submit: {en: 'Submit', am: 'አስገባ', om: 'Galchi'},
     locationErrorTitle: {en: 'Location Error', am: 'የአካባቢ ስህተት', om: 'Dogoggora Bakkaa'},
-    locationErrorDesc: {en: 'Could not get your location. Please ensure location services are enabled.', am: 'አካባቢዎን ማግኘት አልተቻለም። እባክዎ የአካባቢ አገልግሎቶች መንቃታቸውን ያረጋግጡ።', om: 'Iddoo kee argachuu hin dandeenye. Maaloo tajaajilli iddoo argachuu akka banametti mirkaneessi.'},
+    locationErrorDesc: {en: 'Could not get your location. Please ensure location services are enabled.', am: 'አካባቢዎን ማግኘት አልተቻለም። እባክዎ የአካባቢ አገልግሎቶች መንቃታቸውን ያረጋгጡ።', om: 'Iddoo kee argachuu hin dandeenye. Maaloo tajaajilli iddoo argachuu akka banametti mirkaneessi.'},
     locationNotSupported: {en: 'Geolocation is not supported by this browser.', am: 'ጂኦሎኬሽን በዚህ አሳሽ አይደገፍም።', om: 'Geelookeeshiniin biraawzariin kun hin deeggaru.'},
     validationError: {en: 'Validation Error', am: 'የማረጋገጫ ስህተት', om: 'Dogoggora Mirkaneessuu'},
     nameRequired: {en: 'Pharmacy name is required.', am: 'የፋርማሲ ስም ያስፈልጋል።', om: 'Maqaan faarmaasii barbaachisaadha.'},
-    locationRequired: {en: 'Pharmacy location is required.', am: 'የፋርマሲው ቦታ ያስፈልጋል።', om: 'Bakki faarmaasii barbaachisaadha.'},
+    locationRequired: {en: 'Pharmacy location is required.', am: 'የፋርማሲው ቦታ ያስፈልጋል።', om: 'Bakki faarmaasii barbaachisaadha.'},
     addSuccessTitle: {en: 'Pharmacy Added!', am: 'ፋርማሲ ተጨምሯል!', om: 'Faarmaasiin dabalameera!'},
     addedByCommunity: {en: 'Added by community', am: 'በማህበረሰብ የተጨመረ', om: 'Hawaasaan Dabalame'},
-  }), [language]);
+  }), [language, getTranslation]);
 
   return (
     <div className="flex flex-col h-screen w-full">
@@ -191,7 +189,17 @@ export default function LocatePharmacyPage() {
       </header>
 
       <main className="flex-1 relative z-0">
-        <PharmacyMap initialView={view} mapRef={mapRef} communityPharmacies={communityPharmacies}/>
+        <PharmacyMap 
+            initialView={view} 
+            mapRef={mapRef} 
+            communityPharmacies={communityPharmacies}
+            onMapClick={(coords) => {
+                if (isSheetOpen) {
+                    setNewPharmacyCoords(coords);
+                    toast({ title: getTranslation(translations.locationSetSuccess) });
+                }
+            }}
+        />
         {isLoadingLocation && !isSubmitting && (
              <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-20">
                  <Loader2 className="h-12 w-12 text-primary animate-spin" />
@@ -218,8 +226,8 @@ export default function LocatePharmacyPage() {
                         <Label htmlFor="comment">{getTranslation(translations.comment)}</Label>
                         <Textarea id="comment" placeholder={getTranslation(translations.commentPlaceholder)} value={newPharmacy.comment} onChange={e => setNewPharmacy({...newPharmacy, comment: e.target.value})} />
                     </div>
-                    <Button variant={newPharmacyCoords ? "secondary" : "outline"} className="w-full gap-2" onClick={handleSetPharmacyLocation} disabled={isLoadingLocation}>
-                        {isLoadingLocation ? <Loader2 className="h-5 w-5 animate-spin"/> : <LocateFixed className="h-5 w-5" />}
+                    <Button variant={newPharmacyCoords ? "secondary" : "outline"} className="w-full gap-2" onClick={handleSetPharmacyLocation}>
+                        <LocateFixed className="h-5 w-5" />
                         <span>{newPharmacyCoords ? getTranslation(translations.locationSetSuccess) : getTranslation(translations.setPharmacyLocation)}</span>
                     </Button>
                 </div>
@@ -238,4 +246,3 @@ export default function LocatePharmacyPage() {
     </div>
   );
 }
-    

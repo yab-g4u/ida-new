@@ -11,8 +11,12 @@ import { Icons } from '@/components/icons';
 import { useAuth } from '@/contexts/auth-provider';
 import type { ClientUser } from '@/contexts/auth-provider';
 
-function generateUniqueId() {
-  return 'user_' + Date.now().toString(36) + Math.random().toString(36).substring(2);
+function generateReadableId() {
+  const year = new Date().getFullYear();
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const randomLetters = Array(3).fill(null).map(() => letters.charAt(Math.floor(Math.random() * letters.length))).join('');
+  const randomDigits = Math.floor(100 + Math.random() * 900).toString();
+  return `IDA-${year}-${randomLetters}-${randomDigits}`;
 }
 
 export default function CreateUserPage() {
@@ -29,7 +33,7 @@ export default function CreateUserPage() {
     setIsLoading(true);
 
     const newUser: ClientUser = {
-      uid: generateUniqueId(),
+      uid: generateReadableId(),
       displayName: name,
       isAnonymous: true,
     };

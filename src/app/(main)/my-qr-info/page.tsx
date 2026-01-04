@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import QRCode from 'qrcode.react';
 
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,9 @@ import { useLanguage } from '@/hooks/use-language';
 import { useAuth } from '@/contexts/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, User } from 'lucide-react';
+import { Loader2, User, Download } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Required'),
@@ -34,6 +35,7 @@ export default function MyQrInfoPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [qrCodeValue, setQrCodeValue] = useState('');
+  const qrCodeRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<QrInfo>({
     resolver: zodResolver(formSchema),
@@ -68,6 +70,8 @@ export default function MyQrInfoPage() {
     errorTitle: {en: "Error", am: "ስህተት", om: "Dogoggora"},
     uniqueId: {en: "Your Unique ID", am: "የእርስዎ ልዩ መታወቂያ", om: "Eenyummaa Kee Isa Addaa"},
     summarizing: {en: "Generating...", am: "በማመንጨት ላይ...", om: "Uumamaa jira..."},
+    downloadQR: { en: "Download QR", am: "QR አውርድ", om: "QR Buufadhu" },
+    downloadSuccess: { en: "QR Code Downloaded", am: "QR ኮድ ወርዷል", om: "Koodiin QR Bu'eera" },
   }), [getTranslation]);
   
   useEffect(() => {
@@ -111,7 +115,6 @@ export default function MyQrInfoPage() {
 
       const summarizedJson = JSON.stringify(vitalInfo);
       
-      // Optimistically update the UI
       setQrCodeValue(summarizedJson);
 
       const finalValues = {
@@ -120,113 +123,130 @@ export default function MyQrInfoPage() {
       };
 
       localStorage.setItem(`ida-qr-info-${user.uid}`, JSON.stringify(finalValues));
-      form.reset(finalValues); // sync form state
+      form.reset(finalValues);
       
       toast({ title: getTranslation(translations.successTitle), description: getTranslation(translations.saveSuccess) });
     } catch (error) {
       toast({ title: getTranslation(translations.errorTitle), description: getTranslation(translations.saveError), variant: 'destructive' });
       console.error('Error saving QR info:', error);
     } finally {
-        // Short delay to let the user see the button change
         setTimeout(() => setIsSubmitting(false), 500);
     }
   }
 
+  const handleDownload = () => {
+    const canvas = qrCodeRef.current?.querySelector('canvas');
+    if (canvas) {
+      const link = document.createElement('a');
+      link.download = `IDA_QR_Code_${user?.uid}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast({ title: getTranslation(translations.successTitle), description: getTranslation(translations.downloadSuccess) });
+    }
+  };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <header>
-        <h1 className="font-headline text-3xl md:text-4xl text-foreground">{getTranslation(translations.title)}</h1>
-        <p className="text-muted-foreground text-sm md:text-base">{getTranslation(translations.description)}</p>
-      </header>
-       {user?.uid && (
-        <Card className="bg-muted border-dashed">
-            <CardHeader className='pb-2'>
-                <CardDescription>{getTranslation(translations.uniqueId)}</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center gap-2 bg-background p-2 rounded-md">
-                    <User className="h-4 w-4 text-muted-foreground"/>
-                    <p className="text-xs text-muted-foreground font-mono break-all">{user.uid}</p>
-                </div>
-            </CardContent>
-        </Card>
-      )}
+    <ScrollArea className="h-screen">
+      <div className="p-4 md:p-6 space-y-6">
+        <header>
+          <h1 className="font-headline text-3xl md:text-4xl text-foreground">{getTranslation(translations.title)}</h1>
+          <p className="text-muted-foreground text-sm md:text-base">{getTranslation(translations.description)}</p>
+        </header>
+        {user?.uid && (
+          <Card className="bg-muted border-dashed">
+              <CardHeader className='pb-2'>
+                  <CardDescription>{getTranslation(translations.uniqueId)}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <div className="flex items-center gap-2 bg-background p-2 rounded-md">
+                      <User className="h-4 w-4 text-muted-foreground"/>
+                      <p className="text-xs text-muted-foreground font-mono break-all">{user.uid}</p>
+                  </div>
+              </CardContent>
+          </Card>
+        )}
 
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-2 gap-8">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-               <FormField control={form.control} name="name" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{getTranslation(translations.name)}</FormLabel>
-                    <FormControl><Input placeholder={getTranslation(translations.name)} {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              <FormField control={form.control} name="bloodType" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{getTranslation(translations.bloodType)}</FormLabel>
-                    <FormControl><Input placeholder={getTranslation(translations.bloodTypePlaceholder)} {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              <FormField control={form.control} name="allergies" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{getTranslation(translations.allergies)}</FormLabel>
-                    <FormControl><Input placeholder={getTranslation(translations.allergiesPlaceholder)} {...field} /></FormControl>
-                  </FormItem>
-                )} />
-              <FormField control={form.control} name="prescriptions" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{getTranslation(translations.prescriptions)}</FormLabel>
-                    <FormControl><Input placeholder={getTranslation(translations.prescriptionsPlaceholder)} {...field} /></FormControl>
-                  </FormItem>
-                )} />
-              <FormField control={form.control} name="medicalNotes" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{getTranslation(translations.medicalNotes)}</FormLabel>
-                    <FormControl><Textarea rows={4} placeholder={getTranslation(translations.medicalNotesPlaceholder)} {...field} /></FormControl>
-                  </FormItem>
-                )} />
-
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {getTranslation(translations.summarizing)}
-                  </>
-                ) : (
-                  getTranslation(translations.saveBtn)
-                )}
-              </Button>
-            </form>
-          </Form>
-
-          <div className="space-y-6">
-              <Card>
-                  <CardHeader>
-                      <CardTitle className="font-headline">{getTranslation(translations.qrTitle)}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex justify-center items-center p-4">
-                    {qrCodeValue ? (
-                        <div className='bg-white p-4 rounded-lg'>
-                           <QRCode value={qrCodeValue} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} bgColor="white" fgColor="black" level="H" />
-                        </div>
-                    ) : (
-                        <div className="w-full aspect-square bg-muted rounded-md flex items-center justify-center text-muted-foreground text-center p-4">
-                            <p>{getTranslation(translations.noQrCode)}</p>
-                        </div>
-                    )}
-                  </CardContent>
-              </Card>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
           </div>
-        </div>
-      )}
-    </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-8">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField control={form.control} name="name" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{getTranslation(translations.name)}</FormLabel>
+                      <FormControl><Input placeholder={getTranslation(translations.name)} {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                <FormField control={form.control} name="bloodType" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{getTranslation(translations.bloodType)}</FormLabel>
+                      <FormControl><Input placeholder={getTranslation(translations.bloodTypePlaceholder)} {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                <FormField control={form.control} name="allergies" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{getTranslation(translations.allergies)}</FormLabel>
+                      <FormControl><Input placeholder={getTranslation(translations.allergiesPlaceholder)} {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                <FormField control={form.control} name="prescriptions" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{getTranslation(translations.prescriptions)}</FormLabel>
+                      <FormControl><Input placeholder={getTranslation(translations.prescriptionsPlaceholder)} {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                <FormField control={form.control} name="medicalNotes" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{getTranslation(translations.medicalNotes)}</FormLabel>
+                      <FormControl><Textarea rows={4} placeholder={getTranslation(translations.medicalNotesPlaceholder)} {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {getTranslation(translations.summarizing)}
+                    </>
+                  ) : (
+                    getTranslation(translations.saveBtn)
+                  )}
+                </Button>
+              </form>
+            </Form>
+
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="font-headline">{getTranslation(translations.qrTitle)}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex justify-center items-center p-4">
+                      {qrCodeValue ? (
+                          <div ref={qrCodeRef} className='bg-white p-4 rounded-lg'>
+                            <QRCode value={qrCodeValue} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} bgColor="white" fgColor="black" level="H" renderAs="canvas" />
+                          </div>
+                      ) : (
+                          <div className="w-full aspect-square bg-muted rounded-md flex items-center justify-center text-muted-foreground text-center p-4">
+                              <p>{getTranslation(translations.noQrCode)}</p>
+                          </div>
+                      )}
+                    </CardContent>
+                </Card>
+                {qrCodeValue && (
+                  <Button onClick={handleDownload} className="w-full gap-2">
+                    <Download className="h-4 w-4" />
+                    {getTranslation(translations.downloadQR)}
+                  </Button>
+                )}
+            </div>
+          </div>
+        )}
+      </div>
+    </ScrollArea>
   );
 }

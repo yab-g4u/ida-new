@@ -15,6 +15,27 @@ const AiHealthAssistantInputSchema = z.object({
 export type AiHealthAssistantInput = z.infer<typeof AiHealthAssistantInputSchema>;
 
 
+const demoResponses = {
+    am: {
+        'selam': 'ሰላም! እንዴት ነዎት? ዛሬ እንዴት ልረዳዎት እችላለሁ?',
+        'hi': 'ሰላም! እንዴት ነዎት? ዛሬ እንዴት ልረዳዎት እችላለሁ?',
+        'amogn nbr': 'እንደዛ መስማቴ አዝናለሁ። እረፍት እንዲያደርጉ እና ብዙ ፈሳሽ እንዲወስዱ እመክራለሁ። አሁንም ህመም ከተሰማዎት በአቅራቢያዎ የሚገኝን ፋርማሲ እንዲያማክሩ ሀሳብ አቀርባለሁ።',
+        'hodēn eyamemegn nw': 'ይቅርታ፣ የሆድ ህመም ሲሰማዎት መስማቴ አዝናለሁ። ምናልባት ከምግብ ወይም ከጭንቀት ሊሆን ይችላል። እንደ ተፈጥሯዊ ዝንጅብል ሻይ ያሉ ቀላል ነገሮችን መሞከር ይችላሉ። ህመሙ ከቀጠለ፣ እባክዎ በአቅራቢያዎ ያለውን ፋርማሲ ወይም የጤና ማእከል ያማክሩ።',
+    },
+    om: {
+        'akkam': 'Akkam! Nagaa qabduu? Har\'a akkamittan isin gargaaruu danda\'a?',
+        'hi': 'Akkam! Nagaa qabduu? Har\'a akkamittan isin gargaaruu danda\'a?',
+        'na dhukkuba': 'Dhukkubsachuu keessan dhaga\'uun na gaddisiiseera. Boqonnaa akka fudhattanii fi dhangala\'aa baay\'ee akka dhugdan isiniin gorsa. Ammas yoo isinitti dhaga\'ame, faarmaasii dhiyootti argamu akka mariisistan yaada dhiyeessa.',
+        'garaa na dhukkuba': 'Dhiifama, garaa keessan isin dhukkubuu dhaga\'uun na gaddisiiseera. Tarii nyaata ykn dhiphina irraa kan ka\'e ta\'uu danda\'a. Wantoota salphaa kan akka shaayii jinjiibilaa uumamaa yaaluu dandeessu. Dhukkubbiin yoo itti fufe, maaloo faarmaasii ykn giddugala fayyaa dhiyootti argamu mariisisaa.',
+    },
+    en: {
+        'hi': 'Hello! How are you? How can I help you today?',
+        'selam': 'Hello! How are you? How can I help you today?',
+        'i was sick': 'I am sorry to hear that. I recommend you get some rest and drink plenty of fluids. If you still feel unwell, I suggest consulting a nearby pharmacy.',
+        'my stomach hurts': 'I am sorry to hear you have a stomach ache. It could be due to food or stress. You can try simple things like natural ginger tea. If the pain persists, please consult a nearby pharmacy or health center.',
+    }
+}
+
 export const aiHealthAssistant = ai.defineFlow({
     name: 'aiHealthAssistant',
     inputSchema: AiHealthAssistantInputSchema,
@@ -47,27 +68,51 @@ export const aiHealthAssistant = ai.defineFlow({
 - Keep responses concise and optimized for a small mobile screen. Avoid long paragraphs.
 `;
 
-  const { stream, response } = await ai.generateStream({
-    model: 'googleai/gemini-1.5-flash-latest',
-    prompt: input.query,
-    system: systemPrompt,
-  });
+    // Demo mode logic
+    const normalizedQuery = input.query.toLowerCase().trim();
+    const langResponses = demoResponses[input.language];
+    if (normalizedQuery in langResponses) {
+        const demoResponse = langResponses[normalizedQuery as keyof typeof langResponses];
+        const stream = new ReadableStream({
+            start(controller) {
+                controller.enqueue(demoResponse);
+                controller.close();
+            }
+        });
+        return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+    }
 
-  const readableStream = new ReadableStream({
-    async start(controller) {
-      for await (const chunk of stream) {
-        const text = chunk.text;
-        if (text) {
-            // Each chunk is a JSON string, we need to send it as a whole line.
-            controller.enqueue(text);
+  try {
+    const { stream, response } = await ai.generateStream({
+        model: 'googleai/gemini-1.5-flash-latest',
+        prompt: input.query,
+        system: systemPrompt,
+    });
+
+    const readableStream = new ReadableStream({
+        async start(controller) {
+        for await (const chunk of stream) {
+            const text = chunk.text;
+            if (text) {
+                controller.enqueue(text);
+            }
         }
-      }
-      controller.close();
-    },
-  });
+        controller.close();
+        },
+    });
 
-  // The client expects a Response object
-  return new Response(readableStream, {
-    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-  });
+    return new Response(readableStream, {
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+  } catch (error) {
+     console.error("AI Assistant Error:", error);
+     const fallbackResponse = demoResponses[input.language]['hi']; // Default to a greeting
+     const stream = new ReadableStream({
+        start(controller) {
+            controller.enqueue(fallbackResponse);
+            controller.close();
+        }
+    });
+    return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+  }
 });
