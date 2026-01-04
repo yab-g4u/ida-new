@@ -44,7 +44,7 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
 `;
 
   const { stream, response } = ai.generateStream({
-    model: 'googleai/gemini-pro',
+    model: 'googleai/gemini-1.5-flash-latest',
     prompt: input.query,
     system: systemPrompt,
     config: {
