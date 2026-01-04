@@ -153,7 +153,7 @@ export default function LocatePharmacyPage() {
 
   return (
     <div className="flex flex-col h-screen w-full">
-      <header className="p-4 md:p-6 bg-background border-b z-10">
+      <header className="p-4 md:p-6 bg-background border-b z-20">
         <div className="text-center md:text-left">
             <h1 className="font-headline text-2xl md:text-3xl font-bold">{getTranslation(translations.title)}</h1>
             <p className="text-muted-foreground text-sm md:text-base">{getTranslation(translations.subtitle)}</p>
@@ -188,7 +188,7 @@ export default function LocatePharmacyPage() {
         </div>
       </header>
 
-      <main className="flex-1 relative z-0">
+      <main className="flex-1 relative z-10">
         <PharmacyMap 
             initialView={view} 
             mapRef={mapRef} 
@@ -208,11 +208,11 @@ export default function LocatePharmacyPage() {
         )}
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTrigger asChild>
-                 <Button variant="default" size="icon" className="absolute bottom-24 right-4 rounded-full w-14 h-14 shadow-lg z-50">
+                 <Button variant="default" size="icon" className="absolute bottom-24 right-4 rounded-full w-14 h-14 shadow-lg">
                     <Plus className="w-6 h-6"/>
                 </Button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="rounded-t-2xl">
+            <SheetContent side="bottom" className="rounded-t-2xl z-50">
                 <SheetHeader className="text-left">
                     <SheetTitle>{getTranslation(translations.addPharmacy)}</SheetTitle>
                     <SheetDescription>{getTranslation(translations.addPharmacyDesc)}</SheetDescription>

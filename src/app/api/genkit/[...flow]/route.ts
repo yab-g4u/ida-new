@@ -1,11 +1,14 @@
 'use server';
+
 /**
- * @fileoverview This file is the entry point for all Genkit flow API routes.
- * It uses the `expressHandler` from `@genkit-ai/next` to automatically
- * create API endpoints for all the flows defined in the application.
+ * This route handler is responsible for exposing all Genkit flows
+ * that are defined in the application.
+ *
+ * It uses the default handler from `@genkit-ai/next` to create a
+ * POST-only endpoint that can be called from the client.
  */
 
-import { expressHandler } from '@genkit-ai/next';
+import handler from '@genkit-ai/next';
 import '@/ai/dev'; // Make sure to import all the flow definitions
 
-export const { POST } = expressHandler();
+export const POST = handler;
