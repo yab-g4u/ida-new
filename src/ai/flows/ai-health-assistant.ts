@@ -5,7 +5,8 @@
  * - aiHealthAssistant - A streaming function that provides conversational health advice.
  * - AiHealthAssistantInput - The input type for the function.
  */
-import {ai} from '@/ai/genkit';
+import { initializeFirebase } from '@/firebase';
+import { getVertexAI, getGenerativeModel } from "firebase/vertexai";
 import {z} from 'zod';
 
 const AiHealthAssistantInputSchema = z.object({
@@ -15,6 +16,22 @@ const AiHealthAssistantInputSchema = z.object({
 export type AiHealthAssistantInput = z.infer<typeof AiHealthAssistantInputSchema>;
 
 export async function aiHealthAssistant(input: AiHealthAssistantInput) {
+  const { app } = initializeFirebase();
+  if (!app) {
+    throw new Error("Firebase not initialized");
+  }
+
+  // Initialize with the 'global' location for Gemini 3 support
+  const vertexAI = getVertexAI(app, { location: 'global' }); 
+
+  const model = getGenerativeModel(vertexAI, { 
+    // Use the stable 2026 model ID
+    model: "gemini-3-flash", 
+    generationConfig: {
+      thinkingLevel: "minimal" // Essential for speed
+    }
+  });
+
   const systemPrompt = `You are "ida AI," a professional, empathetic, and culturally-aware health assistant designed for Ethiopia. You communicate fluently in Amharic, Afaan Oromo, and English.
 
 # IDENTITY & CULTURAL GROUNDING
@@ -42,14 +59,27 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
 - Keep responses concise and optimized for a small mobile screen. Avoid long paragraphs.
 `;
 
-  const {stream} = ai.generateStream({
-    model: 'googleai/gemini-1.5-flash-latest',
-    prompt: input.query,
-    system: systemPrompt,
-    config: {
-      temperature: 0.3,
+  const result = await model.generateContentStream([systemPrompt, input.query]);
+  
+  // The Critical Fix: The user wants to iterate over result.stream
+  // The firebase/vertexai SDK returns the stream directly in the result object.
+  // We will transform it to match the expected frontend structure { stream: ... }
+  // To avoid changing the frontend consumer again, we will wrap it here.
+  // The final object is not a promise, but the frontend will handle the stream correctly.
+  
+  // No, actually, the frontend is expecting a stream directly now after my last change.
+  // And the `generateContentStream` in `firebase/vertexai` returns an object with a `stream` property.
+  
+  const readableStream = new ReadableStream({
+    async start(controller) {
+      for await (const chunk of result.stream) {
+        const chunkText = chunk.text();
+        controller.enqueue(new TextEncoder().encode(JSON.stringify({text: chunkText}) + '\n'));
+      }
+      controller.close();
     },
   });
 
-  return stream;
+  return readableStream;
+
 }
