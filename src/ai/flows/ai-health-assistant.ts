@@ -6,7 +6,7 @@
  * - AiHealthAssistantInput - The input type for the function.
  */
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
 const AiHealthAssistantInputSchema = z.object({
   query: z.string().describe('The user question about a health topic.'),
@@ -47,7 +47,7 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
     prompt: input.query,
     system: systemPrompt,
     config: {
-      temperature: 0.7,
+      temperature: 0.3,
     },
   });
 
