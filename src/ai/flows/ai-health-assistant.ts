@@ -6,7 +6,7 @@
  * - AiHealthAssistantInput - The input type for the function.
  */
 import {ai} from '@/ai/genkit';
-import {z, generateStream} from 'genkit';
+import {z} from 'genkit';
 
 const AiHealthAssistantInputSchema = z.object({
   query: z.string().describe('The user question about a health topic.'),
@@ -42,7 +42,7 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
 - Keep responses concise and optimized for a small mobile screen. Avoid long paragraphs.
 `;
 
-  const {stream} = await generateStream({
+  const {stream} = ai.generateStream({
     model: 'googleai/gemini-1.5-flash-latest',
     prompt: input.query,
     system: systemPrompt,
