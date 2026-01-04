@@ -6,7 +6,7 @@ import { useLanguage } from '@/hooks/use-language';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, LocateFixed, MapPin, Plus, Search } from 'lucide-react';
-import type { Pharmacy, CommunityPharmacy } from '@/lib/data';
+import type { CommunityPharmacy } from '@/lib/data';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -208,7 +208,7 @@ export default function LocatePharmacyPage() {
         )}
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTrigger asChild>
-                 <Button variant="default" size="icon" className="absolute bottom-24 right-4 rounded-full w-14 h-14 shadow-lg">
+                 <Button variant="default" size="icon" className="absolute bottom-4 right-4 rounded-full w-14 h-14 shadow-lg z-30">
                     <Plus className="w-6 h-6"/>
                 </Button>
             </SheetTrigger>
