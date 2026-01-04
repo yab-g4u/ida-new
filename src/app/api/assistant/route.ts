@@ -41,9 +41,10 @@ export async function POST(req: Request) {
     });
     
     if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Gemini API Error:", errorText);
-        throw new Error(`Gemini API responded with status: ${response.status}`);
+        const errorBody = await response.json();
+        console.error("Gemini API Error:", errorBody);
+        const errorMessage = errorBody?.error?.message || `Gemini API responded with status: ${response.status}`;
+        throw new Error(errorMessage);
     }
 
     const data = await response.json();
@@ -57,6 +58,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ text: aiText });
   } catch (error) {
     console.error("Error in assistant API:", error);
-    return NextResponse.json({ error: (error as Error).message || 'An unknown error occurred.' }, { status: 500 });
+    const message = (error as Error).message || 'An unknown error occurred.';
+    // Check for common API key error messages
+    if (message.includes('API key not valid')) {
+        return NextResponse.json({ error: 'The Gemini API key is invalid. Please check your .env file.' }, { status: 401 });
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

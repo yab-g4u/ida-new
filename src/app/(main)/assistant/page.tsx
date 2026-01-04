@@ -37,6 +37,7 @@ export default function AssistantPage() {
     welcome: { en: `Hi ${user?.displayName || 'there'}! How can I help you today?`, am: `ሰላም ${user?.displayName || ''}! ዛሬ እንዴት ልረዳዎት እችላለሁ?`, om: `Akkam ${user?.displayName || ''}! Har'a akkamittan si gargaaruu danda'a?` },
     placeholder: { en: 'Ask about symptoms, diet, and more...', am: 'ስለ ምልክቶች፣ አመጋገብ፣ እና ሌሎችም ይጠይቁ...', om: 'Waa\'ee mallattoolee, nyaataa fi kanneen biroo gaafadhu...' },
     error: { en: 'Sorry, I encountered an error. Please try again.', am: 'ይቅርታ፣ ስህተት አጋጥሞኛል። እባክዎ እንደገና ይሞክሩ።', om: 'Dhiifama, dogoggorri uumameera. Maaloo irra deebi\'ii yaali.' },
+    apiKeyError: {en: 'API key is not configured correctly.', am: 'የኤፒአይ ቁልፉ በትክክል አልተዋቀረም።', om: 'Furtuun API sirriitti hin qindoomne.'}
   }), [language, user?.displayName]);
 
   useEffect(() => {
@@ -69,12 +70,14 @@ export default function AssistantPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: input }),
       });
-
-      if (!response.ok) {
-        throw new Error(getTranslation(translations.error));
-      }
       
       const data = await response.json();
+
+      if (!response.ok) {
+        // Use the error message from the API if available
+        const errorMessage = data.error || getTranslation(translations.error);
+        throw new Error(errorMessage);
+      }
 
       setMessages(prev =>
         prev.map(msg =>
@@ -83,13 +86,27 @@ export default function AssistantPage() {
       );
 
     } catch (err) {
-      console.error(err);
+      const error = err as Error;
+      console.error(error);
+      
+      let toastDescription = getTranslation(translations.error);
+      if (error.message.includes('API key')) {
+          toastDescription = getTranslation(translations.apiKeyError);
+      } else if (error.message) {
+          toastDescription = error.message;
+      }
+
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: getTranslation(translations.error),
+        description: toastDescription,
       });
-      setMessages(prev => prev.filter(msg => msg.id !== botMessageId));
+      // Update the bot message to show the error, instead of removing it
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === botMessageId ? { ...msg, text: toastDescription, isStreaming: false } : msg
+        )
+      );
     } finally {
       setIsSending(false);
       textareaRef.current?.focus();
