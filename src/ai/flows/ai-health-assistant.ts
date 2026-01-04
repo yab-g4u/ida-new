@@ -48,7 +48,7 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
     prompt: input.query,
     system: systemPrompt,
     config: {
-        temperature: 0.7,
+        temperature: 0.3,
     }
   });
 
@@ -57,13 +57,16 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
       for await (const chunk of stream) {
         const text = chunk.text;
         if (text) {
-          controller.enqueue(new TextEncoder().encode(JSON.stringify({text}) + '\n'));
+            // Each chunk is a JSON string, we need to send it as a whole line.
+            controller.enqueue(text);
         }
       }
       controller.close();
     },
   });
 
-  return readableStream;
-
+  // The client expects a Response object
+  return new Response(readableStream, {
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
 }

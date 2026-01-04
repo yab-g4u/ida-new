@@ -55,6 +55,7 @@ export default function AssistantPage() {
 
     const userMessage: Message = { id: `user-${Date.now()}`, text: input, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setIsSending(true);
 
@@ -62,19 +63,36 @@ export default function AssistantPage() {
     setMessages(prev => [...prev, { id: botMessageId, text: '', sender: 'bot', isStreaming: true }]);
     
     try {
-      const stream = await aiHealthAssistant({ query: input, language });
+      const response = await fetch('/api/genkit/flow/aiHealthAssistant', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+              input: { query: currentInput, language }
+          })
+      });
+
+      if (!response.body) throw new Error("No response body");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
       let finalBotMessageText = '';
 
-      for await (const chunk of stream) {
-        if (chunk.text) {
-          finalBotMessageText += chunk.text();
+      while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          
+          finalBotMessageText += chunk;
           setMessages(prev =>
             prev.map(msg =>
               msg.id === botMessageId ? { ...msg, text: finalBotMessageText } : msg
             )
           );
-        }
       }
+
 
       setMessages(prev =>
         prev.map(msg =>

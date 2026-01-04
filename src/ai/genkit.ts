@@ -1,5 +1,5 @@
 import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/google-genai';
+import {googleAI, gemini15Flash} from '@genkit-ai/google-genai';
 import {openAI} from 'genkitx-openai';
 
 const geminiApiKey = process.env.GEMINI_API_KEY;
