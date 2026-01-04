@@ -3,6 +3,7 @@ import { PillNav } from '@/components/ui/PillNav';
 const navItems = [
     { href: '/home', label: { en: 'Home', am: 'መነሻ', om: 'Mana' } },
     { href: '/scan-medicine', label: { en: 'Scan', am: 'ስካን', om: 'Skaan' } },
+    { href: '/assistant', label: { en: 'Assistant', am: 'ረዳት', om: 'Gargaaraa' } },
     { href: '/my-qr-info', label: { en: 'QR Info', am: 'QR መረጃ', om: 'Odeeffannoo QR' } },
 ];
 

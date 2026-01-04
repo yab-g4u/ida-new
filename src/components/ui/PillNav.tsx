@@ -10,6 +10,7 @@ import { Home, MessageSquare, ScanLine, QrCode } from 'lucide-react';
 
 const navIcons = {
   '/home': Home,
+  '/assistant': MessageSquare,
   '/scan-medicine': ScanLine,
   '/my-qr-info': QrCode,
 };
