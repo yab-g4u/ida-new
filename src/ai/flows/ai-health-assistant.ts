@@ -14,10 +14,10 @@ const AiHealthAssistantInputSchema = z.object({
 });
 export type AiHealthAssistantInput = z.infer<typeof AiHealthAssistantInputSchema>;
 
-export async function* aiHealthAssistant(input: AiHealthAssistantInput) {
+export async function* aiHealthAssistant(input: AiHealthAssistantInput): AsyncGenerator<{ response: string }> {
   const model = ai.getModel('googleai/gemini-1.5-flash-latest');
 
-  const { stream } = await generateStream({
+  const stream = await generateStream({
     model,
     prompt: `You are a helpful and empathetic AI health assistant named IDA.
       Your goal is to provide clear, concise, and easy-to-understand answers to health-related questions.
