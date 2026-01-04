@@ -77,7 +77,6 @@ export default function AssistantChatPage() {
 
     try {
       let finalBotMessageText = '';
-      // Use the async generator directly
       const stream = aiHealthAssistant({ query: text, language });
 
       for await (const chunk of stream) {

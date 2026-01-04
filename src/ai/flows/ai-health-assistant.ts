@@ -1,12 +1,12 @@
 'use server';
 
 /**
- * @fileOverview A mock conversational AI health assistant that provides real-time, grounded information in Amharic, Oromo, and English from a predefined FAQ list.
+ * @fileOverview A conversational AI health assistant that provides real-time, grounded information in Amharic, Oromo, and English.
  */
 
-import { faqData } from '@/lib/faq-data';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import Fuse from 'fuse.js';
+import { generateStream } from 'genkit/ai';
 
 const AiHealthAssistantInputSchema = z.object({
   query: z.string().describe('The user question about a health topic.'),
@@ -14,43 +14,27 @@ const AiHealthAssistantInputSchema = z.object({
 });
 export type AiHealthAssistantInput = z.infer<typeof AiHealthAssistantInputSchema>;
 
+export async function* aiHealthAssistant(input: AiHealthAssistantInput) {
+  const model = ai.getModel('googleai/gemini-1.5-flash-latest');
 
-const getFaqForLanguage = (lang: 'en' | 'am' | 'om') => {
-    return faqData.map(item => ({
-        q: item.q[lang],
-        a: item.a[lang],
-    }));
-}
+  const { stream } = await generateStream({
+    model,
+    prompt: `You are a helpful and empathetic AI health assistant named IDA.
+      Your goal is to provide clear, concise, and easy-to-understand answers to health-related questions.
+      Your responses must be in the user's specified language.
+      Keep your answers brief and to the point, suitable for a mobile chat interface. Do not use markdown.
 
-// This is an async generator function, the modern way to handle streaming in Genkit with Next.js Server Actions.
-export async function* aiHealthAssistant({ query, language }: AiHealthAssistantInput) {
-    const languageFaqs = getFaqForLanguage(language);
+      User Query: "${input.query}"
+      Language: ${input.language}`,
+    config: {
+      temperature: 0.7,
+    },
+  });
 
-    const fuse = new Fuse(languageFaqs, {
-        keys: ['q'],
-        threshold: 0.3, // Loosen threshold slightly for better matching
-    });
-
-    const results = fuse.search(query);
-    let responseText: string;
-
-    const noAnswerResponses = {
-        en: "I'm sorry, I can only answer questions about the flu, blood pressure, and healthy diets in this demo. Please try one of those topics!",
-        am: "ይቅርታ፣ በዚህ ማሳያ ውስጥ ስለ ጉንፋን፣ የደም ግፊት እና ጤናማ አመጋገብ ጥያቄዎችን ብቻ መመለስ እችላለሁ። እባክዎ ከእነዚያ ርዕሶች ውስጥ አንዱን ይሞክሩ!",
-        om: "Dhiifama, agarsiisa kana keessatti gaaffiiwwan waa'ee utaalloo, dhiibbaa dhiigaa, fi nyaata fayya qabeessaa qofa deebisuun danda'a. Maaloo mata dureewwan kanneen keessaa tokko yaali!",
-    };
-    
-    if (results.length > 0) {
-        responseText = results[0].item.a;
-    } else {
-        responseText = noAnswerResponses[language];
+  for await (const chunk of stream) {
+    const text = chunk.text();
+    if (text) {
+      yield { response: text };
     }
-    
-    // Simulate streaming the response text word by word
-    const words = responseText.split(/(\s+)/); // Split by spaces, keeping them
-    for (const word of words) {
-        yield { response: word };
-        // Small delay to simulate word-by-word generation
-        await new Promise(resolve => setTimeout(resolve, 30 + Math.random() * 40));
-    }
+  }
 }
