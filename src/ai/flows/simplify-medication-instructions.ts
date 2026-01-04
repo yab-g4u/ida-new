@@ -8,7 +8,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
 const SimplifyMedicationInstructionsInputSchema = z.object({
   instructions: z.string().describe('The complex medication instructions to simplify.'),
