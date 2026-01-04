@@ -6,8 +6,7 @@
  * - AiHealthAssistantInput - The input type for the function.
  */
 import {ai} from '@/ai/genkit';
-import {z} from 'zod';
-import {generateStream} from 'genkit/ai';
+import {z, generateStream} from 'genkit';
 
 const AiHealthAssistantInputSchema = z.object({
   query: z.string().describe('The user question about a health topic.'),
