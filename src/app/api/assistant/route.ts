@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 // Corrected the model name in the URL to a valid one.
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
 
 const SYSTEM_INSTRUCTION = `You are a localized medical information assistant for Ethiopia.
 You respond only in Amharic or Afaan Oromo, matching the user’s language.

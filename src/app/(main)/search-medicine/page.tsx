@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import { useLanguage, type Language } from '@/hooks/use-language';
+import { useState, useMemo } from 'react';
+import { useLanguage } from '@/hooks/use-language';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Search, X, Pill, Info, ShieldAlert, Sparkles, Utensils, Clock, Languages, AlertTriangle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
-// Mocked output since the AI flow is removed
-type GetMedicineInfoOutput = {
+export type GetMedicineInfoOutput = {
   isMedicine: boolean;
   medicineName: string;
   whatItIs: string;
@@ -21,26 +21,13 @@ type GetMedicineInfoOutput = {
   localSummaryOromo: string;
 };
 
-const mockDrugInfo: GetMedicineInfoOutput = {
-    isMedicine: true,
-    medicineName: "Paracetamol",
-    whatItIs: "A common pain reliever and fever reducer.",
-    usage: "Used to treat many conditions such as headache, muscle aches, arthritis, backache, toothaches, colds, and fevers.",
-    foodInstructions: "Can be taken with or without food. Take with food if it upsets your stomach.",
-    timeTaken: "Typically taken every 4 to 6 hours as needed.",
-    sideEffects: ["Nausea", "Stomach pain", "Loss of appetite", "Dark urine", "Clay-colored stools", "Jaundice (yellowing of the skin or eyes)"],
-    localSummaryAmharic: "ፓራሲታሞል ለራስ ምታት፣ ለጡንቻ ህመም፣ እና ትኩሳት በሰፊው የሚያገለግል የተለመደ የህመም ማስታገሻ ነው።",
-    localSummaryOromo: "Paaraasitaamool kan dhukkubbii mataa, dhukkubbii maashaa, fi ho'inaaf bal'inaan fayyadu qoricha dhukkubbii ittisuu beekamaadha."
-};
-
-
 export default function SearchMedicinePage() {
   const { getTranslation } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [selectedDrugInfo, setSelectedDrugInfo] = useState<GetMedicineInfoOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
-
+  const { toast } = useToast();
 
   const handleSearch = async () => {
     if (searchTerm.length < 2) {
@@ -52,15 +39,37 @@ export default function SearchMedicinePage() {
     setSelectedDrugInfo(null);
     setError(null);
 
-    // Simulate API call
-    setTimeout(() => {
-        if (searchTerm.toLowerCase().includes('para')) {
-            setSelectedDrugInfo({...mockDrugInfo, medicineName: searchTerm});
-        } else {
-            setError(getTranslation(translations.notAMedicine));
-        }
-        setIsSearching(false);
-    }, 1500);
+    try {
+      const response = await fetch('/api/medicine-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ searchTerm }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || getTranslation(translations.searchFailed));
+      }
+      
+      const result: GetMedicineInfoOutput = await response.json();
+
+      if (result.isMedicine) {
+        setSelectedDrugInfo(result);
+      } else {
+        setError(getTranslation(translations.notAMedicine));
+      }
+    } catch (err) {
+      console.error(err);
+      const errorMessage = (err as Error).message || getTranslation(translations.searchFailed);
+      setError(errorMessage);
+      toast({
+        variant: 'destructive',
+        title: 'Search Error',
+        description: errorMessage,
+      });
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -92,6 +101,7 @@ export default function SearchMedicinePage() {
       notAMedicine: { en: 'This does not seem to be a valid medicine. Please try another name.', am: 'ይህ ትክክለኛ መድሃኒት አይመስልም። እባክዎ ሌላ ስም ይሞክሩ።', om: 'Kun qoricha sirrii fakkaatu miti. Maaloo maqaa biraa yaali.' },
       searchFailed: { en: 'An error occurred during the search. Please try again.', am: 'በፍለጋ ወቅት ስህተት ተፈጥሯል። እባክዎ እንደገና ይሞክሩ።', om: 'Yeroo barbaachaatti dogoggorri uumameera. Maaloo irra deebi\'ii yaali.' },
       disclaimer: { en: 'This is for informational purposes only. Always consult a doctor or pharmacist before taking any medication.', am: 'ይህ ለመረጃ አገልግሎት ብቻ ነው። ማንኛውንም መድሃኒት ከመውሰድዎ በፊት ሁል ጊዜ ሐኪም ወይም ፋርማሲስት ያማክሩ።', om: 'Kun odeeffannoof qofa. Qoricha kamiyyuu fudhachuu keessan dura yeroo hunda hakiima yookiin faarmaasii mariisisaa.' },
+      generatingInfo: { en: 'AI is generating information for', am: 'AI መረጃ እያመነጨ ነው ለ', om: 'AI odeeffannoo uumaa jira' },
     }),
     [getTranslation]
   );
@@ -125,7 +135,7 @@ export default function SearchMedicinePage() {
       {isSearching && (
         <Card className="flex flex-col items-center justify-center p-8 text-center space-y-4">
           <Sparkles className="h-10 w-10 animate-pulse text-primary" />
-          <p className="font-semibold text-muted-foreground">{getTranslation({en: 'AI is generating information for', am: 'AI መረጃ እያመነጨ ነው ለ', om: 'AI odeeffannoo uumaa jira'})} "{searchTerm}"...</p>
+          <p className="font-semibold text-muted-foreground">{getTranslation(translations.generatingInfo)} "{searchTerm}"...</p>
         </Card>
       )}
 
@@ -222,3 +232,5 @@ function InfoSection({ title, content, icon: Icon }: { title: string; content: R
     </div>
   );
 }
+
+    
