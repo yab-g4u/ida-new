@@ -15,7 +15,11 @@ const AiHealthAssistantInputSchema = z.object({
 export type AiHealthAssistantInput = z.infer<typeof AiHealthAssistantInputSchema>;
 
 
-export async function aiHealthAssistant(input: AiHealthAssistantInput) {
+export const aiHealthAssistant = ai.defineFlow({
+    name: 'aiHealthAssistant',
+    inputSchema: AiHealthAssistantInputSchema,
+    outputSchema: z.string(),
+}, async (input) => {
   const systemPrompt = `You are "ida AI," a professional, empathetic, and culturally-aware health assistant designed for Ethiopia. You communicate fluently in Amharic, Afaan Oromo, and English.
 
 # IDENTITY & CULTURAL GROUNDING
@@ -43,7 +47,7 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
 - Keep responses concise and optimized for a small mobile screen. Avoid long paragraphs.
 `;
 
-  const { stream, response } = ai.generateStream({
+  const { stream, response } = await ai.generateStream({
     model: 'googleai/gemini-1.5-flash-latest',
     prompt: input.query,
     system: systemPrompt,
@@ -66,4 +70,4 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
   return new Response(readableStream, {
     headers: { 'Content-Type': 'text/plain; charset=utf-8' },
   });
-}
+});
