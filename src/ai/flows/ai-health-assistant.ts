@@ -5,9 +5,7 @@
  * - aiHealthAssistant - A streaming function that provides conversational health advice.
  * - AiHealthAssistantInput - The input type for the function.
  */
-import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getVertexAI, getGenerativeModel } from "firebase/vertexai";
-import { firebaseConfig } from '@/firebase/config';
+import { ai } from '@/ai/genkit';
 import {z} from 'zod';
 
 const AiHealthAssistantInputSchema = z.object({
@@ -16,32 +14,8 @@ const AiHealthAssistantInputSchema = z.object({
 });
 export type AiHealthAssistantInput = z.infer<typeof AiHealthAssistantInputSchema>;
 
-// Helper to initialize Firebase on the server
-let app: FirebaseApp;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApp();
-}
-
 
 export async function aiHealthAssistant(input: AiHealthAssistantInput) {
-
-  // Initialize with the 'global' location for Gemini 3 support
-  const vertexAI = getVertexAI(app, { location: 'global' }); 
-
-  const model = getGenerativeModel(vertexAI, { 
-    // Use the stable 2026 model ID
-    model: "gemini-3-flash", 
-    generationConfig: {
-      thinkingConfig: {
-        thinkingLevel: "minimal" 
-      },
-      temperature: 1.0,
-      maxOutputTokens: 1000,
-    }
-  });
-
   const systemPrompt = `You are "ida AI," a professional, empathetic, and culturally-aware health assistant designed for Ethiopia. You communicate fluently in Amharic, Afaan Oromo, and English.
 
 # IDENTITY & CULTURAL GROUNDING
@@ -69,13 +43,22 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
 - Keep responses concise and optimized for a small mobile screen. Avoid long paragraphs.
 `;
 
-  const result = await model.generateContentStream([systemPrompt, input.query]);
-  
+  const { stream, response } = ai.generateStream({
+    model: 'googleai/gemini-pro',
+    prompt: input.query,
+    system: systemPrompt,
+    config: {
+        temperature: 0.7,
+    }
+  });
+
   const readableStream = new ReadableStream({
     async start(controller) {
-      for await (const chunk of result.stream) {
-        const chunkText = chunk.text();
-        controller.enqueue(new TextEncoder().encode(JSON.stringify({text: chunkText}) + '\n'));
+      for await (const chunk of stream) {
+        const text = chunk.text;
+        if (text) {
+          controller.enqueue(new TextEncoder().encode(JSON.stringify({text}) + '\n'));
+        }
       }
       controller.close();
     },
