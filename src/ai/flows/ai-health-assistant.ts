@@ -43,7 +43,7 @@ export async function aiHealthAssistant(input: AiHealthAssistantInput) {
 `;
 
   const {stream} = ai.generateStream({
-    model: 'googleai/gemini-3-flash',
+    model: 'googleai/gemini-1.5-flash-latest',
     prompt: input.query,
     system: systemPrompt,
     config: {
