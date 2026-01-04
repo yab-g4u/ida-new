@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/hooks/use-auth';
 import { FormattedResponse } from '@/components/formatted-response';
 import { PaperAirplaneIcon } from '@heroicons/react/24/solid';
+import { useToast } from '@/hooks/use-toast';
 
 export const maxDuration = 60;
 
@@ -29,13 +30,13 @@ export default function AssistantPage() {
   const [isSending, setIsSending] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { toast } = useToast();
 
   const translations = useMemo(() => ({
     title: { en: 'AI Health Assistant', am: 'የAI ጤና ረዳት', om: 'Gargaaraa Fayyaa AI' },
     welcome: { en: `Hi ${user?.displayName || 'there'}! How can I help you today?`, am: `ሰላም ${user?.displayName || ''}! ዛሬ እንዴት ልረዳዎት እችላለሁ?`, om: `Akkam ${user?.displayName || ''}! Har'a akkamittan si gargaaruu danda'a?` },
     placeholder: { en: 'Ask about symptoms, diet, and more...', am: 'ስለ ምልክቶች፣ አመጋገብ፣ እና ሌሎችም ይጠይቁ...', om: 'Waa\'ee mallattoolee, nyaataa fi kanneen biroo gaafadhu...' },
     error: { en: 'Sorry, I encountered an error. Please try again.', am: 'ይቅርታ፣ ስህተት አጋጥሞኛል። እባክዎ እንደገና ይሞክሩ።', om: 'Dhiifama, dogoggorri uumameera. Maaloo irra deebi\'ii yaali.' },
-    demoResponse: { en: "Selam! I'm IDA. Ayizoh (Don't worry). I am here to help. How can I assist you today?", am: "ሰላም! እኔ IDA ነኝ። አይዞህ። ዛሬ እንዴት ልረዳህ እችላለሁ?", om: "Akkam! Ani IDA dha. Hin yaadda'in. Har'a akkamittan si gargaaruu danda'a?"}
   }), [language, user?.displayName]);
 
   useEffect(() => {
@@ -62,23 +63,47 @@ export default function AssistantPage() {
     const botMessageId = `bot-${Date.now()}`;
     setMessages(prev => [...prev, { id: botMessageId, text: '', sender: 'bot', isStreaming: true }]);
     
-    // Simulate AI response for demo
-    setTimeout(() => {
-      const demoText = getTranslation(translations.demoResponse);
-       setMessages(prev =>
+    try {
+      const response = await fetch('/api/assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input }),
+      });
+
+      if (!response.ok) {
+        throw new Error(getTranslation(translations.error));
+      }
+      
+      const data = await response.json();
+
+      setMessages(prev =>
         prev.map(msg =>
-          msg.id === botMessageId ? { ...msg, text: demoText, isStreaming: false } : msg
+          msg.id === botMessageId ? { ...msg, text: data.text, isStreaming: false } : msg
         )
       );
+
+    } catch (err) {
+      console.error(err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: getTranslation(translations.error),
+      });
+      setMessages(prev => prev.filter(msg => msg.id !== botMessageId));
+    } finally {
       setIsSending(false);
       textareaRef.current?.focus();
-    }, 1200);
+    }
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage(e);
+      const form = (e.target as HTMLTextAreaElement).form;
+      if (form) {
+        const submitEvent = new SubmitEvent('submit', { bubbles: true, cancelable: true });
+        form.dispatchEvent(submitEvent);
+      }
     }
   };
 
