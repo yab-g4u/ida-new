@@ -10,7 +10,6 @@ import { Home, MessageSquare, ScanLine, QrCode } from 'lucide-react';
 
 const navIcons = {
   '/home': Home,
-  '/assistant': MessageSquare,
   '/scan-medicine': ScanLine,
   '/my-qr-info': QrCode,
 };
@@ -27,17 +26,12 @@ export const PillNav = ({ items }: { items: NavItem[] }) => {
   
   const translatedItems = useMemo(() => items.map(item => ({...item, label: getTranslation(item.label) })), [items, getTranslation]);
 
-  // Hide nav on chat page for better UX
-  if (pathname.startsWith('/assistant/')) {
-    return null;
-  }
-
   return (
     <nav className="pill-nav-container">
       <ul className="pill-list" role="menubar">
         {translatedItems.map((item) => {
           const Icon = navIcons[item.href];
-          const isActive = pathname === item.href || (item.href === '/assistant' && pathname.startsWith('/assistant'));
+          const isActive = pathname === item.href;
           return (
             <li key={item.href} role="none" className="pill-item-wrapper">
               <Link
