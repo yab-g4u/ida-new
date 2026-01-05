@@ -1,19 +1,16 @@
-
 'use client';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useLanguage, type Language } from '@/hooks/use-language';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Loader2, Send, User, Sparkles } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/hooks/use-auth';
 import { FormattedResponse } from '@/components/formatted-response';
 import { PaperAirplaneIcon } from '@heroicons/react/24/solid';
-import { useToast } from '@/hooks/use-toast';
-
-export const maxDuration = 60;
+import { faqData } from '@/lib/faq-data';
+import Fuse from 'fuse.js';
 
 type Message = {
   id: string;
@@ -30,14 +27,26 @@ export default function AssistantPage() {
   const [isSending, setIsSending] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { toast } = useToast();
+  
+  const fuse = useMemo(() => {
+    const options = {
+        keys: [`q.${language}`],
+        includeScore: true,
+        threshold: 0.3, // Lower threshold for stricter matching
+    };
+    return new Fuse(faqData, options);
+  }, [language]);
+
 
   const translations = useMemo(() => ({
     title: { en: 'AI Health Assistant', am: 'የAI ጤና ረዳት', om: 'Gargaaraa Fayyaa AI' },
     welcome: { en: `Hi ${user?.displayName || 'there'}! How can I help you today?`, am: `ሰላም ${user?.displayName || ''}! ዛሬ እንዴት ልረዳዎት እችላለሁ?`, om: `Akkam ${user?.displayName || ''}! Har'a akkamittan si gargaaruu danda'a?` },
     placeholder: { en: 'Ask about symptoms, diet, and more...', am: 'ስለ ምልክቶች፣ አመጋገብ፣ እና ሌሎችም ይጠይቁ...', om: 'Waa\'ee mallattoolee, nyaataa fi kanneen biroo gaafadhu...' },
-    error: { en: 'Sorry, I encountered an error. Please try again.', am: 'ይቅርታ፣ ስህተት አጋጥሞኛል። እባክዎ እንደገና ይሞክሩ።', om: 'Dhiifama, dogoggorri uumameera. Maaloo irra deebi\'ii yaali.' },
-    apiKeyError: {en: 'API key is not configured correctly.', am: 'የኤፒአይ ቁልፉ በትክክል አልተዋቀረም።', om: 'Furtuun API sirriitti hin qindoomne.'}
+    noAnswer: {
+        en: "I'm sorry, I don't have information on that right now. For complex health questions, it's always best to consult a real healthcare professional.",
+        am: 'ይቅርታ፣ በዚህ ጉዳይ ላይ አሁን መረጃ የለኝም። ለተወሳሰቡ የጤና ጥያቄዎች ሁል ጊዜ እውነተኛ የጤና ባለሙያ ማማከር ጥሩ ነው።',
+        om: 'Dhiifama, amma odeeffannoo kana hin qabu. Gaaffilee fayyaa walxaxaa ta\'aniif, yeroo hunda ogeessa fayyaa dhugaa mariisisuun gaariidha.'
+    }
   }), [language, user?.displayName]);
 
   useEffect(() => {
@@ -58,60 +67,34 @@ export default function AssistantPage() {
 
     const userMessage: Message = { id: `user-${Date.now()}`, text: input, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setIsSending(true);
 
     const botMessageId = `bot-${Date.now()}`;
     setMessages(prev => [...prev, { id: botMessageId, text: '', sender: 'bot', isStreaming: true }]);
     
-    try {
-      const response = await fetch('/api/assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input, language }),
-      });
-      
-      if (!response.ok) {
-        // Use the error message from the API if available
-        const errorData = await response.json();
-        const errorMessage = errorData.error || getTranslation(translations.error);
-        throw new Error(errorMessage);
-      }
-      
-      const data = await response.json();
+    // Simulate thinking delay
+    await new Promise(resolve => setTimeout(resolve, 1200));
 
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === botMessageId ? { ...msg, text: data.text, isStreaming: false } : msg
-        )
-      );
+    // Fuzzy search for the best match
+    const results = fuse.search(currentInput);
+    let botResponseText = getTranslation(translations.noAnswer);
 
-    } catch (err) {
-      const error = err as Error;
-      console.error(error);
-      
-      let toastDescription = getTranslation(translations.error);
-      if (error.message.includes('API key')) {
-          toastDescription = getTranslation(translations.apiKeyError);
-      } else if (error.message) {
-          toastDescription = error.message;
-      }
-
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: toastDescription,
-      });
-      // Update the bot message to show the error, instead of removing it
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === botMessageId ? { ...msg, text: toastDescription, isStreaming: false } : msg
-        )
-      );
-    } finally {
-      setIsSending(false);
-      textareaRef.current?.focus();
+    if (results.length > 0) {
+        // The best match is the first result
+        const bestMatch = results[0].item;
+        botResponseText = bestMatch.a[language as Language] || bestMatch.a.en;
     }
+    
+    setMessages(prev =>
+        prev.map(msg =>
+          msg.id === botMessageId ? { ...msg, text: botResponseText, isStreaming: false } : msg
+        )
+      );
+
+    setIsSending(false);
+    textareaRef.current?.focus();
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
