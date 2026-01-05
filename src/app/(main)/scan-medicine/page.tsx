@@ -8,8 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useLanguage } from '@/hooks/use-language';
+import './scan-animation.css';
 
-// Mocked output since the AI flow is removed
 type AnalyzeMedicinePackageOutput = {
   name: string;
   usage: string;
@@ -17,25 +17,26 @@ type AnalyzeMedicinePackageOutput = {
   cons: string;
 };
 
-const demoResult: AnalyzeMedicinePackageOutput = {
-  name: 'Generic Antibiotic',
-  usage: 'Take one capsule (250mg) every 12 hours with a full glass of water. It can be taken with or without food. Do not crush or chew the capsule. Finish the entire course of medication, even if you start to feel better.',
-  pros: 'Effectively treats a wide range of common bacterial infections such as respiratory tract infections, skin infections, and urinary tract infections. It works by stopping the growth of bacteria.',
-  cons: 'Possible side effects include nausea, diarrhea, and stomach upset. More serious side effects are rare but can include allergic reactions (rash, itching, swelling). This medication is not effective against viral infections like the common cold or flu.',
+// New mock data for Myaderm CBD Pain Cream
+const demoResultEn: AnalyzeMedicinePackageOutput = {
+  name: 'Myaderm CBD Pain Cream',
+  usage: 'Apply a thin layer to the affected area no more than 3 to 4 times daily. Rub gently and thoroughly. After applying, wash your hands unless you are using the cream to treat the hands.',
+  pros: 'Provides targeted, temporary relief from minor aches and pains of muscles and joints. It is THC-free and absorbs quickly into the skin for fast-acting effects.',
+  cons: 'For external use only. Do not use on wounds or damaged skin. Avoid contact with eyes. Stop use and ask a doctor if condition worsens or symptoms persist for more than 7 days.',
 };
 
-const translatedDemoResultAm: AnalyzeMedicinePackageOutput = {
-    name: 'አጠቃላይ አንቲባዮቲክ',
-    usage: 'አንድ ካፕሱል (250mg) በየ 12 ሰዓቱ ሙሉ ብርጭቆ ውሃ ጋር ይውሰዱ። ከምግብ ጋር ወይም ያለ ምግብ ሊወሰድ ይችላል። ካፕሱሉን አይሰብሩ ወይም አያኝኩ። ጥሩ ስሜት ቢሰማዎትም እንኳ ሙሉውን የመድሃኒት ኮርስ ይጨርሱ።',
-    pros: 'እንደ የመተንፈሻ አካላት ኢንፌክሽኖች፣ የቆዳ ኢንፌክሽኖች፣ እና የሽንት ቧንቧ ኢንፌክሽኖች ያሉ የተለመዱ የባክቴሪያ ኢንፌክሽኖችን በብቃት ያክማል። የባክቴሪያዎችን እድገት በማስቆም ይሰራል።',
-    cons: 'ሊከሰቱ የሚችሉ የጎንዮሽ ጉዳቶች ማቅለሽለሽ፣ ተቅማጥ፣ እና የሆድ መረበሽ ያካትታሉ። ከባድ የጎንዮሽ ጉዳቶች እምብዛም ባይሆኑም የአለርጂ ምላሾችን (ሽፍታ፣ ማሳከክ፣ እብጠት) ሊያካትቱ ይችላሉ።'
+const demoResultAm: AnalyzeMedicinePackageOutput = {
+    name: 'ማያደርም ሲቢዲ የህመም ማስታገሻ ክሬም',
+    usage: 'በተጎዳው አካባቢ ላይ በቀን ከ3 እስከ 4 ጊዜ ያልበለጠ ስስ ሽፋን ይቀቡ። በቀስታ እና በደንብ ይሹት። ከተቀቡ በኋላ፣ ክሬሙን ለእጅ ህክምና ካልተጠቀሙበት በስተቀር እጅዎን ይታጠቡ።',
+    pros: 'ለትንሽ የጡንቻ እና የመገጣጠሚያ ህመሞች ያነጣጠረ፣ ጊዜያዊ እፎይታ ይሰጣል። ከTHC ነፃ ሲሆን ለፈጣን ውጤት በፍጥነት ወደ ቆዳ ውስጥ ይገባል።',
+    cons: 'ለዉጪ ጥቅም ብቻ። በቁስሎች ወይም በተጎዳ ቆዳ ላይ አይጠቀሙ። ከዓይኖች ጋር ንክኪን ያስወግዱ። ሁኔታው ከተባባሰ ወይም ምልክቶቹ ከ7 ቀናት በላይ ከቀጠሉ መጠቀሙን ያቁሙና ሐኪም ያማክሩ።',
 };
 
-const translatedDemoResultOm: AnalyzeMedicinePackageOutput = {
-    name: 'Qoricha Antibiotic Waliigalaa',
-    usage: 'Kaapsulii tokko (250mg) sa\'aatii 12 hundatti bishaan guutuu waliin fudhadhu. Nyaata waliinis ta\'e nyaata malee fudhatamuu ni danda\'a. Kaapsulicha hin caccabsin yookaan hin alanfatin. Yoo sitti fooyya\'es, koorsii qorichaa guutuu xumuri.',
-    pros: 'Infekshiniiwwan baakteeriyaa kanneen akka infekshinii ujummoo qilleensaa, infekshinii gogaa, fi infekshinii ujummoo fincaanii bal\'inaan yaala. Guddina baakteeriyaa dhaabuun hojjeta.',
-    cons: 'Miidhaaleen cinaa kan akka garaa naqsuu, garaa kaasaa, fi garaa mufachuu mul\'achuu danda\'u. Miidhaaleen cinaa hamaa ta\'an mul\'achuun isaanii xiqqaadha, garuu aleerjii (fineensa, hooqsisuu, dhiita\'uu) fiduu danda\'u.'
+const demoResultOm: AnalyzeMedicinePackageOutput = {
+    name: 'Myaderm CBD Muccaa Dhukkubbii',
+    usage: 'Guyyaatti yeroo 3 hanga 4 caalaa bakka miidhame irratti haphiistee dibi. Suuta jedhii sirriitti riguu. Yoo harka kee yaaluuf itti hin fayyadamne ta\'e, erga dibdee booda harka kee dhiqadhu.',
+    pros: 'Dhukkubbii maashaa fi buusaa xixiqqoo yeroof akka salphatuuf gargaara. THC kan hin qabne yoo ta\'u, dafee gogaa keessa seenee saffisaan hojjeta.',
+    cons: 'Fayyadama alaa qofaaf. Madaa yookiin gogaa miidhame irratti hin dibin. Ija kee irraa fageessi. Yoo haalli isaa hammaate yookiin mallattooleen guyyaa 7 ol turan, fayyadamuu dhaabii hakiima mariisisi.',
 };
 
 
@@ -69,7 +70,6 @@ export default function ScanMedicinePage() {
     cons: { en: 'Cons / Side Effects', am: 'ጉዳቶች / የጎንዮሽ ጉዳቶች', om: 'Miidhaa / Miidhaa Ganaa' },
     disclaimerTitle: { en: 'Disclaimer', am: 'የኃላፊነት ማስተባበያ', om: 'Of-gaafii' },
     disclaimerText: { en: 'This is for informational purposes only. Always consult a qualified healthcare professional before making any medical decisions.', am: 'ይህ ለመረጃ አገልግሎት ብቻ ነው። ማንኛውንም የህክምና ውሳኔ ከማድረግዎ በፊት ሁል ጊዜ ብቃት ያለው የጤና ባለሙያ ያማክሩ።', om: 'Kun kaayyoo odeeffannootiif qofa. Murtii yaalaa kamiyyuu gochuu keessan dura yeroo hunda ogeessa fayyaa gahumsa qabu mariisisaa.' },
-    translating: { en: 'Translating...', am: 'በመተርጎም ላይ...', om: 'Hiikamaa jira...' },
   }), [language]);
 
   const resetState = () => {
@@ -105,16 +105,18 @@ export default function ScanMedicinePage() {
     setIsProcessing(true);
     setAiResult(null);
 
-    // Simulate analysis time
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 2500));
     
     let result: AnalyzeMedicinePackageOutput;
-    if (language === 'am') {
-        result = translatedDemoResultAm;
-    } else if (language === 'om') {
-        result = translatedDemoResultOm;
-    } else {
-        result = demoResult;
+    switch (language) {
+      case 'am':
+        result = demoResultAm;
+        break;
+      case 'om':
+        result = demoResultOm;
+        break;
+      default:
+        result = demoResultEn;
     }
     
     setVerificationStatus('verified');
@@ -160,7 +162,10 @@ export default function ScanMedicinePage() {
             <CardTitle>{getTranslation(translations.capturedImageTitle)}</CardTitle>
           </CardHeader>
           <CardContent>
-            <Image src={imageDataUri} alt="Medicine Package" width={500} height={500} className="rounded-lg w-full h-auto" />
+             <div className="relative overflow-hidden rounded-lg">
+                <Image src={imageDataUri} alt="Medicine Package" width={500} height={500} className="w-full h-auto" />
+                {isProcessing && <div className="scan-animation"></div>}
+            </div>
           </CardContent>
         </Card>
 
