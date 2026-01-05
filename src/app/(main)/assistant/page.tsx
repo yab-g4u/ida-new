@@ -68,16 +68,17 @@ export default function AssistantPage() {
       const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({ message: input, language }),
       });
       
-      const data = await response.json();
-
       if (!response.ok) {
         // Use the error message from the API if available
-        const errorMessage = data.error || getTranslation(translations.error);
+        const errorData = await response.json();
+        const errorMessage = errorData.error || getTranslation(translations.error);
         throw new Error(errorMessage);
       }
+      
+      const data = await response.json();
 
       setMessages(prev =>
         prev.map(msg =>

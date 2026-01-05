@@ -1,16 +1,26 @@
+
 'use server';
 
 import { NextResponse } from 'next/server';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-// Corrected the model name in the URL to a valid one.
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
-const SYSTEM_INSTRUCTION = `You are a localized medical information assistant for Ethiopia.
-You respond only in Amharic or Afaan Oromo, matching the user’s language.
-Your answers are culturally appropriate and locally contextualized, not literal translations.
-You provide general health information only and do not diagnose, prescribe medication, or give treatment plans.
-For serious symptoms or emergencies, advise the user to visit a nearby health center, clinic, or hospital, or consult a licensed healthcare professional.`;
+const getSystemInstruction = (language: string) => {
+  const langMap: Record<string, string> = {
+    am: 'Amharic',
+    om: 'Afaan Oromo',
+    en: 'English',
+  };
+  const langName = langMap[language] || 'the user\'s specified language';
+
+  return `You are a localized medical information assistant for Ethiopia.
+Respond ONLY in ${langName}.
+Your answers must be culturally appropriate and locally contextualized for Ethiopia, not literal translations.
+You provide general health information only. Do NOT diagnose, prescribe medication, or give treatment plans.
+For any serious symptoms, emergencies, or uncertainty, you MUST strongly advise the user to visit a nearby health center, clinic, or hospital, or to consult a licensed healthcare professional.`;
+};
+
 
 export async function POST(req: Request) {
   if (!GEMINI_API_KEY) {
@@ -18,7 +28,9 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { message } = await req.json();
+    const { message, language = 'en' } = await req.json();
+
+    const systemInstruction = getSystemInstruction(language);
 
     const response = await fetch(GEMINI_URL, {
       method: 'POST',
@@ -27,7 +39,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         systemInstruction: {
-          parts: [{ text: SYSTEM_INSTRUCTION }],
+          parts: [{ text: systemInstruction }],
         },
         contents: [{
           parts: [{ text: message }],
@@ -49,6 +61,8 @@ export async function POST(req: Request) {
     }
 
     const data = await response.json();
+    
+    // Defensive check for candidate and content parts
     const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!aiText) {
