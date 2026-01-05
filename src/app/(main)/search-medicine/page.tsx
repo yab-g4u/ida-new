@@ -21,6 +21,41 @@ export type GetMedicineInfoOutput = {
   localSummary: string;
 };
 
+// Demo-mode mock data to prevent API quota issues during presentation
+const amoxicillinMockData: Record<string, GetMedicineInfoOutput> = {
+  en: {
+    isMedicine: true,
+    medicineName: 'Amoxicillin',
+    whatItIs: 'An antibiotic used to treat bacterial infections.',
+    usage: 'It is used to treat infections such as pneumonia, bronchitis, and infections of the ear, nose, throat, skin, or urinary tract.',
+    foodInstructions: 'It can be taken with or without food, but taking it with food may reduce stomach upset.',
+    timeTaken: 'Usually taken every 8 or 12 hours.',
+    sideEffects: ['Nausea', 'Vomiting', 'Diarrhea', 'Rash', 'Headache'],
+    localSummary: 'Amoxicillin is an antibiotic used for various bacterial infections.',
+  },
+  am: {
+    isMedicine: true,
+    medicineName: 'አሞክሲሲሊን',
+    whatItIs: 'የባክቴሪያ ኢንፌክሽኖችን ለማከም የሚያገለግል አንቲባዮቲክ ነው።',
+    usage: 'እንደ የሳንባ ምች፣ ብሮንካይተስ፣ እና የጆሮ፣ አፍንጫ፣ ጉሮሮ፣ ቆዳ ወይም የሽንት ቧንቧ ኢንፌክሽኖች ያሉ ኢንፌክሽኖችን ለማከም ያገለግላል።',
+    foodInstructions: 'ከምግብ ጋር ወይም ያለ ምግብ ሊወሰድ ይችላል፣ ነገር ግን ከምግብ ጋር መውሰድ የሆድ መረበሽን ሊቀንስ ይችላል።',
+    timeTaken: 'ብዙውን ጊዜ በየ 8 ወይም 12 ሰዓቱ ይወሰዳል።',
+    sideEffects: ['ማቅለሽለሽ', 'ማስታወክ', 'ተቅማጥ', 'ሽፍታ', 'ራስ ምታት'],
+    localSummary: 'አሞክሲሲሊን ለተለያዩ የባክቴሪያ ኢንፌክሽኖች ህክምና የሚውል አንቲባዮቲክ ነው።',
+  },
+  om: {
+    isMedicine: true,
+    medicineName: 'Amooksisiliinii',
+    whatItIs: 'Qoricha farra baakteeriyaa kan infeekshiniiwwan baakteeriyaatiin dhufan yaaluuf ooludha.',
+    usage: 'Infeekshiniiwwan akka neumoniyaa, bronkaayitii, fi infeekshiniiwwan gurraa, funyaanii, qoonqoo, gogaa, yookiin ujummoo fincaanii yaaluuf tajaajila.',
+    foodInstructions: 'Nyaata wajjinis ta\'e nyaata malee fudhatamuu ni danda\'a, garuu nyaata wajjin fudhachuun garaa mufachuu hir\'isuu danda\'a.',
+    timeTaken: 'Yeroo baay\'ee sa\'aatii 8 yookiin 12 keessatti fudhatama.',
+    sideEffects: ['Garaa naqsuu', 'Diddiga', 'Garaa kaasaa', 'Shiftaa', 'Mataa bowwuu'],
+    localSummary: 'Amooksisiliiniin qoricha farra baakteeriyaa kan infeekshiniiwwan baakteeriyaa adda addaatiif ooludha.',
+  },
+};
+
+
 export default function SearchMedicinePage() {
   const { getTranslation, language } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,6 +73,15 @@ export default function SearchMedicinePage() {
     setIsSearching(true);
     setSelectedDrugInfo(null);
     setError(null);
+
+    // DEMO MODE: Intercept common search to prevent quota issues
+    if (searchTerm.toLowerCase().trim() === 'amoxicillin') {
+        setTimeout(() => {
+            setSelectedDrugInfo(amoxicillinMockData[language]);
+            setIsSearching(false);
+        }, 1500); // Simulate network delay
+        return;
+    }
 
     try {
       const response = await fetch('/api/medicine-search', {
@@ -244,3 +288,5 @@ function InfoSection({ title, content, icon: Icon }: { title: string; content: R
     </div>
   );
 }
+
+    
