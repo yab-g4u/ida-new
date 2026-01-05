@@ -21,10 +21,21 @@ You provide general health information only. Do NOT diagnose, prescribe medicati
 For any serious symptoms, emergencies, or uncertainty, you MUST strongly advise the user to visit a nearby health center, clinic, or hospital, or to consult a licensed healthcare professional.`;
 };
 
+const getFallbackResponse = (language: string) => {
+    const fallbacks: Record<string, string> = {
+        am: "ሰላም! እኔ IDA ነኝ። የጤና መረጃ ቋታችንን እያሻሻልኩ ስለሆነ ለጊዜው ጥያቄዎን መመለስ አልችልም። እባክዎ ቆይተው እንደገና ይሞክሩ። በአገልግሎቴ ላይ ለሚፈጠረው መስተጓጎል ይቅርታ እጠይቃለሁ።",
+        om: "Akkam! Ani IDA dha. Odeeffannoo fayyaa keenya yeroo ammaa haaromsaa waan jirruuf, gaaffii keessaniif deebii kennuu hin danda'u. Maaloo yeroo gabaabaa booda irra deebi'aa yaalaa. Rakkina mudateef dhiifama.",
+        en: "Hello! I'm IDA. I'm currently updating my health database and can't answer your query right now. Please try again shortly. I apologize for the interruption."
+    };
+    return fallbacks[language] || fallbacks.en;
+}
+
 
 export async function POST(req: Request) {
   if (!GEMINI_API_KEY) {
-    return NextResponse.json({ error: 'Gemini API key not configured.' }, { status: 500 });
+    console.error("Gemini API key not configured.");
+    // Return a structured error that the frontend expects
+    return NextResponse.json({ error: 'The Gemini API key is not configured on the server. Please check the environment variables.' }, { status: 500 });
   }
 
   try {
@@ -72,12 +83,10 @@ export async function POST(req: Request) {
     
     return NextResponse.json({ text: aiText });
   } catch (error) {
-    console.error("Error in assistant API:", error);
-    const message = (error as Error).message || 'An unknown error occurred.';
-    // Check for common API key error messages
-    if (message.includes('API key not valid')) {
-        return NextResponse.json({ error: 'The Gemini API key is invalid. Please check your .env file.' }, { status: 401 });
-    }
-    return NextResponse.json({ error: message }, { status: 500 });
+    const { language = 'en' } = await req.json().catch(() => ({ language: 'en' }));
+    console.error("Error in assistant API, returning fallback:", error);
+    const fallbackText = getFallbackResponse(language);
+    // Return the fallback in the same structure as a successful response
+    return NextResponse.json({ text: fallbackText });
   }
 }
